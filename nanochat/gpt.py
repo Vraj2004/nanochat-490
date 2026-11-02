@@ -37,6 +37,9 @@ class GPTConfig:
     # Characters: L=long (full context), S=short (quarter context)
     # Examples: "L"=all full context, "SL"=alternating, "SSL"=two short then one long
     window_pattern: str = "SSSL"
+    # Ablations (the defaults are the unchanged July architecture)
+    mlp_type: str = "relu2" # "relu2" | "geglu"
+    rope_frac: float = 1.0 # fraction of each head's dims that RoPE rotates
 
 
 def norm(x):
@@ -58,11 +61,13 @@ def apply_rotary_emb(x, cos, sin):
     # note: this rotates by -theta, the transpose of the textbook convention. Functionally
     # equivalent (only the relative q/k rotation matters), kept for checkpoint compatibility.
     assert x.ndim == 4  # multihead attention
-    d = x.shape[3] // 2
-    x1, x2 = x[..., :d], x[..., d:] # split up last dim into two halves
+    d = cos.shape[-1] # number of rotated pairs (all of them unless rope_frac < 1)
+    x1, x2 = x[..., :d], x[..., d:2*d] # split the rotated dims into two halves
     y1 = x1 * cos + x2 * sin # rotate pairs of dims
     y2 = x1 * (-sin) + x2 * cos
-    return torch.cat([y1, y2], 3)
+    if 2 * d == x.shape[3]:
+        return torch.cat([y1, y2], 3)
+    return torch.cat([y1, y2, x[..., 2*d:]], 3) # partial RoPE: the remaining dims pass through
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, config, layer_idx):
@@ -131,12 +136,20 @@ class CausalSelfAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.c_fc = Linear(config.n_embd, 4 * config.n_embd, bias=False)
-        self.c_proj = Linear(4 * config.n_embd, config.n_embd, bias=False)
+        assert config.mlp_type in ("relu2", "geglu"), f"Invalid mlp_type: {config.mlp_type}"
+        n_embd = config.n_embd
+        # GeGLU has 3 matrices instead of 2, so 8/3x hidden (a multiple of 64) keeps params about equal
+        hidden = 64 * round(8 * n_embd / 3 / 64) if config.mlp_type == "geglu" else 4 * n_embd
+        self.c_fc = Linear(n_embd, hidden, bias=False)
+        self.c_gate = Linear(n_embd, hidden, bias=False) if config.mlp_type == "geglu" else None
+        self.c_proj = Linear(hidden, n_embd, bias=False)
 
     def forward(self, x):
-        x = self.c_fc(x)
-        x = F.relu(x).square()
+        if self.c_gate is not None:
+            x = F.gelu(self.c_gate(x)) * self.c_fc(x)
+        else:
+            x = self.c_fc(x)
+            x = F.relu(x).square()
         x = self.c_proj(x)
         return x
 
@@ -195,8 +208,7 @@ class GPT(nn.Module):
         # so let's just over-compute them by 10X, but assert fail if we ever reach that amount.
         # In the future we can dynamically grow the cache, for now it's fine.
         self.rotary_seq_len = config.sequence_len * 10 # 10X over-compute should be enough, TODO make nicer?
-        head_dim = config.n_embd // config.n_head
-        cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, head_dim)
+        cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, self._rotary_dim())
         self.register_buffer("cos", cos, persistent=False) # persistent=False means it's not saved to the checkpoint
         self.register_buffer("sin", sin, persistent=False)
 
@@ -213,6 +225,7 @@ class GPT(nn.Module):
             attn.c_v:        uniform, std=1/sqrt(n_embd)
             attn.c_proj:     zeros
             mlp.c_fc:        uniform, std=1/sqrt(n_embd)
+            mlp.c_gate:      same as mlp.c_fc (GeGLU only)
             mlp.c_proj:      zeros
         """
 
@@ -229,6 +242,8 @@ class GPT(nn.Module):
             torch.nn.init.uniform_(block.attn.c_v.weight, -s, s)
             torch.nn.init.zeros_(block.attn.c_proj.weight) # projections are zero
             torch.nn.init.uniform_(block.mlp.c_fc.weight, -s * 0.4, s * 0.4)  # 0.4x init scale for c_fc
+            if block.mlp.c_gate is not None:
+                torch.nn.init.uniform_(block.mlp.c_gate.weight, -s * 0.4, s * 0.4)
             torch.nn.init.zeros_(block.mlp.c_proj.weight)
 
         # Per-layer scalars
@@ -255,8 +270,7 @@ class GPT(nn.Module):
                 torch.nn.init.uniform_(block.attn.ve_gate.weight, 0.0, 0.02)
 
         # Rotary embeddings
-        head_dim = self.config.n_embd // self.config.n_head
-        cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, head_dim)
+        cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, self._rotary_dim())
         self.cos, self.sin = cos, sin
 
         # Cast embeddings to COMPUTE_DTYPE: optimizer can tolerate reduced-precision
@@ -266,6 +280,13 @@ class GPT(nn.Module):
             self.transformer.wte.to(dtype=COMPUTE_DTYPE)
             for ve in self.value_embeds.values():
                 ve.to(dtype=COMPUTE_DTYPE)
+
+    def _rotary_dim(self):
+        """Number of dims in each head that RoPE rotates. Must be positive and even (rotation works on pairs)."""
+        head_dim = self.config.n_embd // self.config.n_head
+        rotary_dim = round(head_dim * self.config.rope_frac)
+        assert 0 < rotary_dim <= head_dim and rotary_dim % 2 == 0, f"Invalid rope_frac: {self.config.rope_frac}"
+        return rotary_dim
 
     def _precompute_rotary_embeddings(self, seq_len, head_dim, base=100000, device=None):
         # TODO: bump base theta more? e.g. 100K is more common more recently
