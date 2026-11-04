@@ -17,7 +17,10 @@ One-time setup on your machine:
 
 3) Context extension (Part Four): train at a short sequence length, then resume at 2048 for the
    rest of the same LR schedule, then run the passkey eval on both checkpoints:
-    modal run modal_train.py::context_ext --run-name d12_ctx512
+    modal run --detach modal_train.py::context_ext --run-name d12_ctx512 --extra-args "--save-every=500"
+
+   With --detach the job is handed off and the terminal can be closed. Rerunning with the same
+   --run-name resumes from its latest checkpoint; use a new name to start over.
 
    Evaluate any checkpoint on its own with the passkey eval:
     modal run modal_train.py::passkey --model-tag d12_ctx512 --step 2016 --widen
@@ -30,6 +33,8 @@ Everything (shards, tokenizer, checkpoints, logs) lives on the Modal volume
 """
 
 import os
+import re
+import sys
 import shlex
 import subprocess
 
@@ -101,7 +106,7 @@ def prepare(num_shards: int = 60):
     volume.commit()
 
 
-def _train(run_name: str, model_tag: str, depth: int, extra_args: str, run_eval: bool):
+def _train(run_name: str, model_tag: str, depth: int, extra_args: str):
     log_dir = os.path.join(VOLUME_DIR, "logs")
     os.makedirs(log_dir, exist_ok=True)
     train_cmd = (
@@ -111,13 +116,26 @@ def _train(run_name: str, model_tag: str, depth: int, extra_args: str, run_eval:
     )
     _run(f"set -o pipefail; {train_cmd} 2>&1 | tee {log_dir}/{run_name}_train.log")
     volume.commit()
-    if run_eval:
-        eval_cmd = (
-            f"torchrun --standalone --nproc_per_node={NUM_GPUS} -m scripts.base_eval -- "
-            f"--model-tag={shlex.quote(model_tag)} --device-batch-size=32"
-        )
-        _run(f"set -o pipefail; {eval_cmd} 2>&1 | tee {log_dir}/{run_name}_eval.log")
-        volume.commit()
+
+
+def _base_eval(log_name: str, model_tag: str, step: int = None):
+    log_dir = os.path.join(VOLUME_DIR, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    step_arg = f"--step={step}" if step is not None else ""
+    eval_cmd = (
+        f"torchrun --standalone --nproc_per_node={NUM_GPUS} -m scripts.base_eval -- "
+        f"--model-tag={shlex.quote(model_tag)} {step_arg} --device-batch-size=32"
+    )
+    _run(f"set -o pipefail; {eval_cmd} 2>&1 | tee {log_dir}/{log_name}_eval.log")
+    volume.commit()
+
+
+def _last_complete_step(checkpoint_dir: str) -> int:
+    """Latest step with metadata and every rank's optimizer shard saved (0 if none)."""
+    files = set(os.listdir(checkpoint_dir)) if os.path.isdir(checkpoint_dir) else set()
+    steps = [int(m.group(1)) for f in files if (m := re.fullmatch(r"meta_(\d+)\.json", f))]
+    complete = [s for s in steps if all(f"optim_{s:06d}_rank{r}.pt" in files for r in range(NUM_GPUS))]
+    return max(complete, default=0)
 
 
 def _passkey(model_tag: str, step: int, widen: bool, extra_args: str):
@@ -139,7 +157,9 @@ def _passkey(model_tag: str, step: int, widen: bool, extra_args: str):
     timeout=4 * 3600,
 )
 def train_remote(run_name: str, depth: int, extra_args: str, run_eval: bool):
-    _train(run_name, run_name, depth, extra_args, run_eval)
+    _train(run_name, run_name, depth, extra_args)
+    if run_eval:
+        _base_eval(run_name, run_name)
 
 
 @app.function(
@@ -153,19 +173,27 @@ def context_ext_remote(run_name: str, depth: int, num_iterations: int, switch_st
     # Both phases run in this one container: the optimizer state is sharded per GPU, so phase 2 must
     # resume on the same number of GPUs as phase 1. Both write to the same checkpoint dir (model tag).
     horizon = f"--num-iterations={num_iterations}"
-    # phase 1: 4x the rows at 1/4 the length keeps tokens per micro-batch (and grad accumulation) unchanged
-    short_batch = 32 * 2048 // short_len
-    _train(f"{run_name}_p1_seq{short_len}", run_name, depth,
-           f"{horizon} --stop-at-step={switch_step} --max-seq-len={short_len} --device-batch-size={short_batch} {extra_args}",
-           run_eval)
-    # phase 2: resume the same LR schedule, optimizer state and data position at the long sequence length
-    _train(f"{run_name}_p2_seq{long_len}", run_name, depth,
-           f"{horizon} --resume-from-step={switch_step} --max-seq-len={long_len} {extra_args}",
-           run_eval)
-    # checkpoint 1 as trained, checkpoint 1 with windows widened to long_len, checkpoint 2
+    last = _last_complete_step(os.path.join(VOLUME_DIR, "base_checkpoints", run_name))
+    if last:
+        print(f"Found a checkpoint at step {last}, resuming from there", flush=True)
+    if last < switch_step:
+        # phase 1: 4x the rows at 1/4 the length keeps tokens per micro-batch (and grad accumulation) unchanged
+        short_batch = 32 * 2048 // short_len
+        resume = f"--resume-from-step={last}" if last else ""
+        _train(f"{run_name}_p1_seq{short_len}", run_name, depth,
+               f"{horizon} {resume} --stop-at-step={switch_step} --max-seq-len={short_len} --device-batch-size={short_batch} {extra_args}")
+    if last < num_iterations:
+        # phase 2: resume the same LR schedule, optimizer state and data position at the long sequence length
+        _train(f"{run_name}_p2_seq{long_len}", run_name, depth,
+               f"{horizon} --resume-from-step={max(last, switch_step)} --max-seq-len={long_len} {extra_args}")
+    # Evals run on both checkpoints by step, so a resumed run that skipped a phase still evaluates it.
+    # Passkey first: checkpoint 1 as trained, checkpoint 1 with windows widened to long_len, checkpoint 2
     _passkey(run_name, switch_step, False, f"--seq-len={long_len} {passkey_args}")
     _passkey(run_name, switch_step, True, f"--seq-len={long_len} {passkey_args}")
     _passkey(run_name, num_iterations, False, f"--seq-len={long_len} {passkey_args}")
+    if run_eval:
+        _base_eval(f"{run_name}_step{switch_step}", run_name, switch_step)
+        _base_eval(f"{run_name}_step{num_iterations}", run_name, num_iterations)
 
 
 @app.function(volumes={VOLUME_DIR: volume}, gpu=GPU, timeout=2 * 3600)
@@ -208,7 +236,14 @@ def context_ext(run_name: str = "d12_ctx512", depth: int = 12, num_iterations: i
     switch_step = round(switch_frac * num_iterations)
     print(f"Launching {run_name} (depth={depth}) on {GPU}: steps 0-{switch_step} at seq len {short_len}, "
           f"{switch_step}-{num_iterations} at {long_len}, extra args: {extra_args!r}")
-    context_ext_remote.remote(run_name, depth, num_iterations, switch_step, short_len, long_len, extra_args, eval, passkey_args)
+    call = context_ext_remote.spawn(run_name, depth, num_iterations, switch_step, short_len, long_len, extra_args, eval, passkey_args)
+    # Blocking on .remote() lets an interrupted terminal (Ctrl+C, laptop sleep) cancel the call even with
+    # --detach. A spawned call in a detached app keeps running after this exits.
+    if "--detach" in sys.argv:
+        print(f"Spawned {call.object_id} in the background, safe to close this terminal.")
+        print("Follow it on the app page on modal.com, or with `modal app list` then `modal app logs <app id> -f`")
+    else:
+        call.get()
 
 
 @app.local_entrypoint()
