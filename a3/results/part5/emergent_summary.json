@@ -1,0 +1,43 @@
+{
+  "pico": {
+    "tag": "d12_rope50",
+    "step": 2520,
+    "correct": 50
+  },
+  "nano": {
+    "tag": "d20_final_v2",
+    "step": 4980,
+    "correct": 74
+  },
+  "num_prompts": 99,
+  "nano_only": [
+    "The capital of Japan is",
+    "The capital of Canada is",
+    "The capital of Italy is",
+    "The freezing point of water in degrees Celsius is",
+    "The Mona Lisa was painted by",
+    "The company that makes the iPhone is",
+    "The plural of mouse is",
+    "15 - 7 =",
+    "The smallest prime number is",
+    "The capital of China is",
+    "The capital of India is",
+    "The capital of Greece is",
+    "The capital of Mexico is",
+    "The Statue of Liberty is located in",
+    "The Amazon rainforest is mostly located in",
+    "The powerhouse of the cell is the",
+    "The hardest natural substance on Earth is",
+    "The study of living things is called",
+    "The first person to walk on the Moon was",
+    "The telephone was invented by",
+    "The Harry Potter books were written by",
+    "The Odyssey was written by",
+    "The main language spoken in Brazil is",
+    "The official language of Mexico is",
+    "Bees make"
+  ],
+  "pico_only": [
+    "Martin Luther King Jr. is famous for his speech"
+  ]
+}
