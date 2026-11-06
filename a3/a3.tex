@@ -1,0 +1,233 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{float}
+
+\setlength{\LTcapwidth}{\textwidth}
+
+% Same look as \titleformat{\section}{\large\bfseries}{}{0em}{} from A1, without needing titlesec
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}{1.2em}{0.5em}{\large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}{0.6em}{0.2em}{\normalsize\bfseries}}
+\makeatother
+
+% Column types for the tables
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\graphicspath{{figures/}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{\vspace{-3em}{CSC490 Assignment A3: Pre-training nanochat\vspace{-1em}}}
+
+\author{
+  Prithvi Seran (1009973343) \and
+  Vraj Shah (1009102695) \and
+  Tyseer Toufiq (1009364064) \and
+  Joshua Crisologo (1009860438)
+}
+\date{}
+
+\begin{document}
+
+
+\maketitle
+\vspace{-2.5em}
+
+\section*{Part 1: Architecture Review}
+
+\subsection*{The Original nanochat (October 13, 2025)}
+
+The original nanochat \cite{nanochat} (commit \code{3a5e0bc}) is a decoder-only, pre-norm Transformer \cite{vaswani,gpt2}. Its size is set by the depth $L$ alone: the width is $d = 64L$, each head has 128 dimensions, and the MLP hidden size is $4d$. The d20 model used for the speedrun (Figure~\ref{fig:oct-arch}) has about 561M parameters. Table~\ref{tab:oct} lists its main design choices.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{nanochat_oct_architecture.pdf}
+  \caption{The original nanochat architecture (October 13, 2025) at depth 20. Left: the full model. Right: one of the 20 pre-norm Transformer blocks.}
+  \label{fig:oct-arch}
+\end{figure}
+
+{\small
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{L{2.6cm} L{6.0cm} L{5.6cm}}
+\caption{Main architecture choices in the original nanochat.}\label{tab:oct}\\
+\toprule
+\textbf{Component} & \textbf{Choice} & \textbf{Why} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Component} & \textbf{Choice} & \textbf{Why} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+\textbf{Position} & RoPE on $q$ and $k$, $\theta = 10{,}000$, all head dims rotated \cite{roformer} & Relative position with no extra parameters \\
+\midrule
+\textbf{Normalization} & RMSNorm with no learnable gain, pre-norm, also after the embedding \cite{rmsnorm} & Cheaper than LayerNorm and keeps the residual stream stable \\
+\midrule
+\textbf{Attention} & Causal multi-head attention with QK-norm \cite{qknorm} & QK-norm bounds attention logits at high learning rates \\
+\midrule
+\textbf{MLP} & $4d$ hidden, ReLU$^2$ activation \cite{primer} & Same cost as GELU and strong in speedruns \\
+\midrule
+\textbf{Output} & Untied \code{lm\_head}; logit soft-cap $15\tanh(z/15)$ \cite{gemma2} & Separate learning rates; prevents over-confident logits \\
+\midrule
+\textbf{Other} & No biases; output projections initialized to zero & Simpler; each block starts as the identity \\
+\midrule
+\textbf{Optimizer} & Muon \cite{muon} for the block matrices, AdamW \cite{adamw} for the embedding and \code{lm\_head} & Muon trains the large matrices faster \\
+
+\end{longtable}
+}
+
+\subsection*{Changes in the July 2026 Version}
+
+Our baseline is the July 2026 version (\code{92d63d4}). Most of the changes since October come from the modded-nanogpt speedrun \cite{modded}:
+\begin{itemize}[leftmargin=1.2em, itemsep=0em, topsep=0.1em, parsep=0em]
+  \item sliding-window attention in an \code{SSSL} pattern, using FlashAttention-3 \cite{fa3};
+  \item value embeddings \cite{valueres} and learned per-layer residual scalars;
+  \item RoPE $\theta$ raised to 100,000 and a smaller vocabulary of 32,768 tokens;
+  \item one combined Muon/AdamW optimizer, now with weight decay.
+\end{itemize}
+The ReLU$^2$ MLP has not changed, and RoPE is still applied to every head dimension with one $\theta$ for all layers. Our proposed changes target these two parts.
+
+\subsection*{Proposed Changes}
+
+ModernBERT \cite{modernbert} updated BERT \cite{bert} with components from recent LLMs and tested its choices with ablations. July nanochat already has most of them, including bias-free layers, RoPE, pre-norm, alternating local and global attention, and FlashAttention. We take three ideas from ModernBERT that nanochat lacks: the GeGLU MLP, separate RoPE $\theta$ values for local and global layers, and partial RoPE, which ModernBERT tested but did not adopt. Table~\ref{tab:changes} summarizes them and Figure~\ref{fig:changes} shows each one.
+
+\textbf{What we ablate.} Part 2 ablates GeGLU and partial RoPE. At d12 neither changes the parameter count or FLOPs, and each is a single flag, so a gap from the baseline that is larger than seed noise can be attributed to the change. We leave change 3 for Part 4: ModernBERT found no difference between $\theta$ settings during pretraining and only raised the global $\theta$ when it extended its context length. ModernBERT's ablations used encoders of at most 150M parameters, so the results may not carry over to a causal decoder like nanochat.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{proposed_changes.pdf}
+  \caption{The three proposed changes: (a) GeGLU MLP, (b) partial RoPE, (c) separate RoPE $\theta$ for sliding-window (S) and full-context (L) layers.}
+  \label{fig:changes}
+\end{figure}
+
+{\small
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{L{2.4cm} L{4.2cm} L{4.2cm} L{3.4cm}}
+\caption{Proposed architecture changes relative to July 2026 nanochat ($d$ = model width, $T$ = context length).}\label{tab:changes}\\
+\toprule
+\textbf{Change} & \textbf{Motivation} & \textbf{Technical Details} & \textbf{Potential Impact} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Change} & \textbf{Motivation} & \textbf{Technical Details} & \textbf{Potential Impact} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+\textbf{1. GeGLU MLP} \newline \cite{glu} &
+In T5, gated MLPs reached lower perplexity than ReLU and GELU MLPs with the same parameter count \cite{glu}. PaLM \cite{palm}, LLaMA \cite{llama} and ModernBERT all use one. &
+$W_{\text{proj}}\big(\mathrm{GELU}(W_{\text{gate}}x) \odot W_{\text{fc}}x\big)$ with $h = 8d/3$, so parameters match ReLU$^2$ ($h = 2{,}048$ at d12). Flag \code{-{}-mlp-type=geglu}. &
+Same parameters and FLOPs. Expect slightly lower loss. ReLU$^2$ is a strong baseline, so a tie is possible. \\
+\midrule
+
+\textbf{2. Partial RoPE} \newline \cite{neox} &
+Full RoPE mixes position into every dimension, while unrotated dims can match on content at any distance. GPT-NeoX rotates 25\% of each head \cite{neox}. ModernBERT found 50--75\% slightly better than 100\% but kept 100\% because its ablations ran at a much smaller scale than the final model. &
+Rotate the first 64 of the 128 head dims and pass the rest through unchanged. Flag \code{-{}-rope-frac=0.5}. &
+No new parameters or FLOPs. Small or no gain at picochat scale; may help context extension. \\
+\midrule
+
+\textbf{3. Separate RoPE $\theta$ for local and global layers} \newline \cite{gemma3} &
+July uses $\theta = 100{,}000$ everywhere, even in sliding-window layers that only see $T/4$ tokens. ModernBERT uses 10k local and 160k global; Gemma 3 uses 10k and 1M \cite{gemma3}. &
+Two cos/sin tables: sliding-window layers use $\theta = 10{,}000$ and full-context layers keep 100,000. Raise only the global $\theta$ when extending context. &
+No new parameters or FLOPs. We expect no effect at a fixed context length; any benefit should appear during context extension. \\
+
+\end{longtable}
+}
+
+\newpage
+
+\section*{Part 2: Ablations on a Nano Nanochat}
+
+\newpage
+
+\section*{Part 3: Hardware Efficiency Curves}
+
+\newpage
+
+\section*{Part 4: Extending the Context Window}
+
+\newpage
+
+\section*{Part 5: Training Our Final Nanochat}
+
+\newpage
+\begin{thebibliography}{99}
+
+\bibitem{nanochat}
+A. Karpathy, ``nanochat: A tiny chatbot arena and training harness,'' GitHub, 2025. \url{https://github.com/karpathy/nanochat/discussions/481}
+
+\bibitem{vaswani}
+A. Vaswani et al., ``Attention Is All You Need,'' \textit{NeurIPS}, 2017. arXiv:1706.03762.
+
+\bibitem{gpt2}
+A. Radford et al., ``Language Models are Unsupervised Multitask Learners,'' OpenAI technical report, 2019.
+
+\bibitem{roformer}
+J. Su et al., ``RoFormer: Enhanced Transformer with Rotary Position Embedding,'' \textit{Neurocomputing}, vol.~568, 2024. arXiv:2104.09864.
+
+\bibitem{rmsnorm}
+B. Zhang and R. Sennrich, ``Root Mean Square Layer Normalization,'' \textit{NeurIPS}, 2019. arXiv:1910.07467.
+
+\bibitem{qknorm}
+A. Henry et al., ``Query-Key Normalization for Transformers,'' \textit{Findings of EMNLP}, 2020. arXiv:2010.04245.
+
+\bibitem{primer}
+D. R. So et al., ``Primer: Searching for Efficient Transformers for Language Modeling,'' \textit{NeurIPS}, 2021. arXiv:2109.08668.
+
+\bibitem{gemma2}
+Gemma Team, ``Gemma 2: Improving Open Language Models at a Practical Size,'' arXiv:2408.00118, 2024.
+
+\bibitem{muon}
+K. Jordan et al., ``Muon: An optimizer for hidden layers in neural networks,'' 2024. \url{https://kellerjordan.github.io/posts/muon/}
+
+\bibitem{adamw}
+I. Loshchilov and F. Hutter, ``Decoupled Weight Decay Regularization,'' \textit{ICLR}, 2019. arXiv:1711.05101.
+
+\bibitem{modded}
+K. Jordan et al., ``modded-nanogpt: Speedrunning the NanoGPT baseline,'' GitHub, 2024. \url{https://github.com/KellerJordan/modded-nanogpt}
+
+\bibitem{fa3}
+J. Shah et al., ``FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-precision,'' arXiv:2407.08608, 2024.
+
+\bibitem{valueres}
+Z. Zhou et al., ``Value Residual Learning For Alleviating Attention Concentration In Transformers,'' arXiv:2410.17897, 2024.
+
+\bibitem{modernbert}
+B. Warner et al., ``Smarter, Better, Faster, Longer: A Modern Bidirectional Encoder for Fast, Memory Efficient, and Long Context Finetuning and Inference,'' \textit{ACL}, pp.~2526--2547, 2025. \url{https://aclanthology.org/2025.acl-long.127/}
+
+\bibitem{bert}
+J. Devlin et al., ``BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding,'' arXiv:1810.04805, 2018.
+
+\bibitem{glu}
+N. Shazeer, ``GLU Variants Improve Transformer,'' arXiv:2002.05202, 2020.
+
+\bibitem{palm}
+A. Chowdhery et al., ``PaLM: Scaling Language Modeling with Pathways,'' \textit{JMLR}, vol.~24, 2023. arXiv:2204.02311.
+
+\bibitem{llama}
+H. Touvron et al., ``LLaMA: Open and Efficient Foundation Language Models,'' arXiv:2302.13971, 2023.
+
+\bibitem{neox}
+S. Black et al., ``GPT-NeoX-20B: An Open-Source Autoregressive Language Model,'' \textit{BigScience Workshop on Challenges \& Perspectives in Creating Large Language Models}, 2022. arXiv:2204.06745.
+
+\bibitem{gemma3}
+Gemma Team, ``Gemma 3 Technical Report,'' arXiv:2503.19786, 2025.
+
+\end{thebibliography}
+
+\end{document}
