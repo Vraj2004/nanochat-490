@@ -1,0 +1,114 @@
+Autodetected device type: cuda
+2026-11-04 01:50:55,352 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 8
+2026-11-04 01:50:55,353 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/base_checkpoints/d12_rope50 with step 2520
+2026-11-04 01:50:55,865 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 12, 'n_head': 6, 'n_kv_head': 6, 'n_embd': 768, 'window_pattern': 'SSSL', 'rope_frac': 0.5}
+Evaluating model: base_model (step 2520)
+Eval modes: bpb, core, sample
+
+================================================================================
+Model Samples
+================================================================================
+
+Conditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>The capital of France is Paris, and it is the capital of the world. The capital of France is
+--------------------------------------------------------------------------------
+<|bos|>The chemical symbol of gold is Au. It is a soft, malleable, ductile, and ductile
+--------------------------------------------------------------------------------
+<|bos|>If yesterday was Friday, then tomorrow will be Friday. If yesterday was Saturday, then tomorrow will be Saturday. If yesterday was
+--------------------------------------------------------------------------------
+<|bos|>The opposite of hot is cold. The opposite of cold is cold. The opposite of hot is cold.
+--------------------------------------------------------------------------------
+<|bos|>The planets of the solar system are: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Ne
+--------------------------------------------------------------------------------
+<|bos|>My favorite color is blue. I love it. I love it. I love it. I love
+--------------------------------------------------------------------------------
+<|bos|>If 5*x + 3 = 13, then x is 13. If 5*x + 3 = 13, then
+
+Unconditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>If the high dollar places late cash jobs, then the company will be familiar with the lower 3-5 grand overhead and keep accounting for the rates to embrace inflation.
+If high 3rd foam had no competition ranting from its competitors it would figure out paying it as reasonable, and thus pay for the rates butalthy enough for a steady income. Can a 3rd competitor use a 3rd competitor if I believe it.
+However, I cannot see how any of these things could be done anyway.
+And I really have never been able to find any examples of a case where a 3rd competitor is claiming trouble receiving money
+--------------------------------------------------------------------------------
+<|bos|>Charlene produced 4 young children, with 1 in a group, in the 23-year-old Ez Philipp Siberian youth group, in a room on the Serengeti beach, on an ancient rock outcrop during a 30k-of-an-year tradition. The older children were taking care of younger children and their only task was to blend in and be at a young family reunion. The youngsters couldn't tolerate being isolated for 30 or 40 minutes. The young children could have health issues, but in total, it was obscured by the tragic failure of the country to eustress and resettle wild
+--------------------------------------------------------------------------------
+<|bos|>Your description isn't very accurate. Perhaps not surprisingly, this is exactly the problem stated by your site not resolving, but I don't think I understand what you mean.
+
+Policy critics and laypeople, whose theory is the answer should seek to keep conversations fluffy!
+
+Do you think that too much detail will show up in Google that yields no credible conclusions? If so, is that all to do with Google?
+
+2 options thought of thatThe answer is clearly "discight".
+
+(They seem to be (petition thing) but can be useful - called make it easier to dress and don't wear the meat pad and fish cloth. ),
+--------------------------------------------------------------------------------
+<|bos|>Model,
+VL (Mean Line Error) against an unknown value; false when imcomponent is used to get a label
+VL (Mean Line Error) against an unknown value; false when imcomponent is used to get a fixed line
+Validation parameter: script:
+Recreational Value Valid: Normal Value Word: created replica and this script represents normal value
+Reproduced by tConclusion:
+The output script slightly varies depending on the type of medical table being reproduced, as the error being added to reported values. To sum it up, the script prints out a warning, usually that there has been an error caused by
+--------------------------------------------------------------------------------
+<|bos|>Dive for Spring 2004: Ther whole is exothermal and below .......surprisingly been engulfed in student class preparations.
+Psychedelics and their relations to drugs, cancer,
+and mental disorders are so deeply embedded in human culture that something
+gotta have that goose is one man and a fool has no courage. With smart
+managers and protocol it is now become much easier to medicate or relegate narcotics
+to that category, wet off the need for your strongest juices that fight disease
+onto your insides. Pesticides and dairy are art to none,
+another word here for work that goes
+--------------------------------------------------------------------------------
+<|bos|>These species are commonly known as sympatric or subspecies to describe an isolated population. However, their certain colours can also refer to distinct geographical populations and subspecies. For example, lactose tolerant citrullis kalbujansii in Brazil actually possess the ability to grow as lactose tolerant oranges while Ananes orange race pigeon in Kenya have been treated as a non-vernal orange to fight against the highly toxic fuel. My spotlight today is in Aurora Australis quadrivittendans grown in zones 6 to 7 where it produces nutritious fruit which are eaten during the evening and sometimes day–butternut season.[23]
+--------------------------------------------------------------------------------
+<|bos|>How bonsai basics: The sacred question of fire
+
+Did you know that God used natich fire as a way for the Pharbs to manage the stone? It used to be that gods would keep wild fire in stead of killing. But lately, more people would put it out because of the flowers explained.
+
+Do you live in Northern South Texas? If so, you may wonder if it is Christmas time! It's December 24 and Christmas is coming up. Thanks to holiday vibe, it's our time to use the big festive branches for Christmas to bring our homes back to authenticity.
+
+Don't you in love with the plants that gifts
+--------------------------------------------------------------------------------
+<|bos|>pointing towards the Designer, in order to focus on one or more of the issues. This can be no longer an easy task, but once a project is finished he/she is almost a finalist in this
+service and a functioning style can be called in conjunction. OS is assumed to be the storks of the user mind and it is the universal tool a user can grasp about the Bamboo....
+50056434315586
+.Save time 以是卡是安背
+Answer 50056434315586:
+A printer is a tool used for making
+
+================================================================================
+BPB Evaluation
+================================================================================
+train bpb: 0.843404
+val bpb: 0.841967
+
+================================================================================
+CORE Evaluation
+================================================================================
+Evaluating: hellaswag_zeroshot (0-shot, type: multiple_choice)... accuracy: 0.3653 | centered: 0.1537 | time: 14.17s
+Evaluating: jeopardy (10-shot, type: language_modeling)... accuracy: 0.0104 | centered: 0.0104 | time: 3.16s
+Evaluating: bigbench_qa_wikidata (10-shot, type: language_modeling)... accuracy: 0.2472 | centered: 0.2472 | time: 28.20s
+Evaluating: arc_easy (10-shot, type: multiple_choice)... accuracy: 0.5640 | centered: 0.4186 | time: 4.19s
+Evaluating: arc_challenge (10-shot, type: multiple_choice)... accuracy: 0.2824 | centered: 0.0432 | time: 1.90s
+Evaluating: copa (0-shot, type: multiple_choice)... accuracy: 0.5800 | centered: 0.1600 | time: 0.20s
+Evaluating: commonsense_qa (10-shot, type: multiple_choice)... accuracy: 0.3415 | centered: 0.1769 | time: 2.02s
+Evaluating: piqa (10-shot, type: multiple_choice)... accuracy: 0.6790 | centered: 0.3580 | time: 3.13s
+Evaluating: openbook_qa (0-shot, type: multiple_choice)... accuracy: 0.3300 | centered: 0.1067 | time: 0.73s
+Evaluating: lambada_openai (0-shot, type: language_modeling)... accuracy: 0.3058 | centered: 0.3058 | time: 6.96s
+Evaluating: hellaswag (10-shot, type: multiple_choice)... accuracy: 0.3584 | centered: 0.1445 | time: 18.81s
+Evaluating: winograd (0-shot, type: schema)... accuracy: 0.5824 | centered: 0.1648 | time: 0.38s
+Evaluating: winogrande (0-shot, type: schema)... accuracy: 0.5178 | centered: 0.0355 | time: 1.62s
+Evaluating: bigbench_dyck_languages (10-shot, type: language_modeling)... accuracy: 0.0780 | centered: 0.0780 | time: 1.69s
+Evaluating: agi_eval_lsat_ar (3-shot, type: multiple_choice)... accuracy: 0.2870 | centered: 0.1087 | time: 0.42s
+Evaluating: bigbench_cs_algorithms (10-shot, type: language_modeling)... accuracy: 0.3750 | centered: 0.3750 | time: 2.03s
+Evaluating: bigbench_operators (10-shot, type: language_modeling)... accuracy: 0.0952 | centered: 0.0952 | time: 0.33s
+Evaluating: bigbench_repeat_copy_logic (10-shot, type: language_modeling)... accuracy: 0.0312 | centered: 0.0312 | time: 0.06s
+Evaluating: squad (10-shot, type: language_modeling)... accuracy: 0.1891 | centered: 0.1891 | time: 19.26s
+Evaluating: coqa (0-shot, type: language_modeling)... accuracy: 0.1895 | centered: 0.1895 | time: 11.85s
+Evaluating: boolq (10-shot, type: multiple_choice)... accuracy: 0.5920 | centered: -0.0736 | time: 6.36s
+Evaluating: bigbench_language_identification (10-shot, type: multiple_choice)... accuracy: 0.2503 | centered: 0.1752 | time: 23.62s
+
+Results written to: /data/base_eval/base_model_002520.csv
+CORE metric: 0.1588

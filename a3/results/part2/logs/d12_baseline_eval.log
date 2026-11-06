@@ -1,0 +1,104 @@
+Autodetected device type: cuda
+2026-11-02 00:28:14,868 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 8
+2026-11-02 00:28:14,871 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/base_checkpoints/d12_baseline with step 2520
+2026-11-02 00:28:17,009 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 12, 'n_head': 6, 'n_kv_head': 6, 'n_embd': 768, 'window_pattern': 'SSSL'}
+Evaluating model: base_model (step 2520)
+Eval modes: bpb, core, sample
+
+================================================================================
+Model Samples
+================================================================================
+
+Conditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>The capital of France is Paris, and the capital of the world is the capital of the United States.
+--------------------------------------------------------------------------------
+<|bos|>The chemical symbol of gold is Au. It is a soft, malleable, ductile, and ductile
+--------------------------------------------------------------------------------
+<|bos|>If yesterday was Friday, then tomorrow will be Friday. If you are not sure, then you can use the following formula to
+--------------------------------------------------------------------------------
+<|bos|>The opposite of hot is cold. The opposite of cold is hot. The opposite of hot is cold.
+--------------------------------------------------------------------------------
+<|bos|>The planets of the solar system are: Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune,
+--------------------------------------------------------------------------------
+<|bos|>My favorite color is black. I love it because it's so easy to see the colors in the
+--------------------------------------------------------------------------------
+<|bos|>If 5*x + 3 = 13, then x is 5*x + 3 = 13. If 5*x
+
+Unconditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>If the high dollar cap rolls in, there go too many other pumpkins for the picket line, or what grande would keep the bullies? ... Stop calling for years to roll against me foamy dispossessed next year. What a heavy pack gone.
+
+One town of more than 150 villages, but like a vast vibrant village, it's a war-logalously in existence. There is only one village in the town, and they aren't known for tourism or goods exports--when much of India reaches this point. 1/3 of all the world's village buildings are in disrepairs troublemakers.
+
+
+--------------------------------------------------------------------------------
+<|bos|>Charlene produced the landmark 1915 documentary, The Artwork of Miss Sarah, which highlighted the devastating effects of Philippine youth violence, largely by a particularly high-profile black-migrant from Bangladesh and was published a decade later. 30 days later, when not only did the documentary highlight Bangladesh's situation, but it also offered evidence that the country was now getting ready to resolve its very big tribal wars. Among many other things, the 1915 documentary showed there was a very high rate of violence from the tribes in neighboring districts willing to take action by expanding the range of "illegal" gunshots.
+The remarkable
+--------------------------------------------------------------------------------
+<|bos|>Your description isn't very accurate. Perhaps you have a look at the color of a few classic banana varieties.
+
+On the other hand that we have an SF we have a black ones and a yellow ones, both standard banana varieties. Some say they are most cold climate resistant (but do not have the pods so hold tight). Some claim the yields go only a few steps further and to a great extent exactly. The thought of that and the following plants does not answer the question "About a year ago, my husband took off his jacket and boots from the fungi of the sea and brought some of the meat up and sold it. At
+--------------------------------------------------------------------------------
+<|bos|>Model,
+VL (Mean), ratio of the coefficient of first term in the empirical curve to that of a set of
+semantic equilibrium coefficients of a column (BB), whose neighboring column
+refers to the determinate terms in fixed columns. The parameter parameter
+state are weighted to give the coefficients of distribution that do not change
+transfer from the other kinds of columns, that is, originating from simple
+softening. In Ducalden's theory, 3 has a unique coefficient of distribution
+that is automatically ...
+
+Change ring
+however if the change ring explored in the Ducalden theory
+--------------------------------------------------------------------------------
+<|bos|>Dive for the square peperomia (Thoracentridus equinriatus) and explain the foot quirks of generations of the desert dwellers. How do you get rid of snakes from the inside of doors and windows? Use some time-lapse photography and winterizing goose vibes to take this project of the homeless square peperomia out of it's abodes.
+This chubby ghost is a rex from the youth through the age of 23 and is your ancestor x that grew up in the dunes of the Southern Piedmont in the southeastern Virginia area... most all here in Virginia
+I
+--------------------------------------------------------------------------------
+<|bos|>These species are commonly known as sympatrics. They are an effect of dispersal and were considered extensively in the mouse-electric regime of the pre-universe. This is consistent with speculation about the prevailing end of the most extensive division in the pre-universe into eight fused sets of chromosomes with single base-group DNA... Read moreAnd that gene sequence could be used as a tool to explain speciation much better and
+]]> My Pick: Gonostylum exulatum
+ 11 Jul 2013 15:56:10 +0000 find the species Gonostylum exulatum, part of HeLa (Curci
+--------------------------------------------------------------------------------
+<|bos|>How bonsai trees grow
+
+See this colorful photograph of one of bonsai’s famous leaves (below) made from the care of Mudlobe bonsai tree – 500 years ago (green) how bonsai trees grow. While the decision was made by parents who would put a particularly expensive nursery in this world, what french people didn’t understand is that the most important things that a tree needs is a good soil environment to thrive. Pruning a young bonsai tree is a child’s hobby, but it’s not always easy to do it properly's hard work to make your bonsai mature enough that you can actually enjoy in your home!
+
+Just like these
+--------------------------------------------------------------------------------
+<|bos|>pointing towards the Designer, being sure you can say "Doesn't a dresser exist?" and no backlight descents, but if a dresser, he/she would almost never be slamming to a target, and a functioning dresser would probably exist on a school themselves and stumble upon. (During long distance matches the mistakes in a dresser are obvious). Bamboo chairs, even with a little pre-decks along the bottom, are still used for a while, and if the goal (and with the help of a buddy) is to go out all night the other can ask for help. Cavalier
+
+================================================================================
+BPB Evaluation
+================================================================================
+train bpb: 0.843659
+val bpb: 0.842274
+
+================================================================================
+CORE Evaluation
+================================================================================
+Evaluating: hellaswag_zeroshot (0-shot, type: multiple_choice)... accuracy: 0.3644 | centered: 0.1525 | time: 14.47s
+Evaluating: jeopardy (10-shot, type: language_modeling)... accuracy: 0.0109 | centered: 0.0109 | time: 3.24s
+Evaluating: bigbench_qa_wikidata (10-shot, type: language_modeling)... accuracy: 0.2616 | centered: 0.2616 | time: 29.19s
+Evaluating: arc_easy (10-shot, type: multiple_choice)... accuracy: 0.5669 | centered: 0.4226 | time: 4.25s
+Evaluating: arc_challenge (10-shot, type: multiple_choice)... accuracy: 0.2782 | centered: 0.0375 | time: 1.93s
+Evaluating: copa (0-shot, type: multiple_choice)... accuracy: 0.6200 | centered: 0.2400 | time: 0.19s
+Evaluating: commonsense_qa (10-shot, type: multiple_choice)... accuracy: 0.3514 | centered: 0.1892 | time: 2.02s
+Evaluating: piqa (10-shot, type: multiple_choice)... accuracy: 0.6665 | centered: 0.3330 | time: 3.24s
+Evaluating: openbook_qa (0-shot, type: multiple_choice)... accuracy: 0.3380 | centered: 0.1173 | time: 0.75s
+Evaluating: lambada_openai (0-shot, type: language_modeling)... accuracy: 0.3128 | centered: 0.3128 | time: 7.16s
+Evaluating: hellaswag (10-shot, type: multiple_choice)... accuracy: 0.3594 | centered: 0.1459 | time: 18.58s
+Evaluating: winograd (0-shot, type: schema)... accuracy: 0.5861 | centered: 0.1722 | time: 0.39s
+Evaluating: winogrande (0-shot, type: schema)... accuracy: 0.5185 | centered: 0.0371 | time: 1.65s
+Evaluating: bigbench_dyck_languages (10-shot, type: language_modeling)... accuracy: 0.1010 | centered: 0.1010 | time: 1.79s
+Evaluating: agi_eval_lsat_ar (3-shot, type: multiple_choice)... accuracy: 0.2217 | centered: 0.0272 | time: 0.41s
+Evaluating: bigbench_cs_algorithms (10-shot, type: language_modeling)... accuracy: 0.4182 | centered: 0.4182 | time: 2.06s
+Evaluating: bigbench_operators (10-shot, type: language_modeling)... accuracy: 0.1333 | centered: 0.1333 | time: 0.34s
+Evaluating: bigbench_repeat_copy_logic (10-shot, type: language_modeling)... accuracy: 0.0000 | centered: 0.0000 | time: 0.06s
+Evaluating: squad (10-shot, type: language_modeling)... accuracy: 0.2563 | centered: 0.2563 | time: 19.09s
+Evaluating: coqa (0-shot, type: language_modeling)... accuracy: 0.2202 | centered: 0.2202 | time: 12.01s
+Evaluating: boolq (10-shot, type: multiple_choice)... accuracy: 0.5798 | centered: -0.1057 | time: 6.72s
+Evaluating: bigbench_language_identification (10-shot, type: multiple_choice)... accuracy: 0.2527 | centered: 0.1779 | time: 22.64s
+
+Results written to: /data/base_eval/base_model_002520.csv
+CORE metric: 0.1664

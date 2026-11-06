@@ -167,7 +167,7 @@ We tracked every run in the team's Weights \& Biases (W\&B) project:
 \begin{center}
 \small\url{https://forge.coreweave.com/wandb/vraj-shah2121-university-of-toronto/nanochat/workspace}
 \end{center}
-The three full runs are \code{d12\_baseline}, \code{d12\_geglu} and \code{d12\_rope50}. Each logged validation bits per byte (BPB) every 250 steps, training loss, throughput and MFU every 100 steps, and the CORE score at steps 2000 and 2520. CORE was capped at 500 examples per task. Table~\ref{tab:part2-results} summarizes the runs, and Figure~\ref{fig:part2-training} compares their training curves.
+The W\&B project may not be visible to readers outside the team, so the training and evaluation logs of every run in this report are also in \code{a3/results/}, one folder per part. The three full runs are \code{d12\_baseline}, \code{d12\_geglu} and \code{d12\_rope50}. Each logged validation bits per byte (BPB) every 250 steps, training loss, throughput and MFU every 100 steps, and the CORE score at steps 2000 and 2520. CORE was capped at 500 examples per task. Table~\ref{tab:part2-results} summarizes the runs, and Figure~\ref{fig:part2-training} compares their training curves.
 
 The W\&B configs differ only in the flag under test (\code{--mlp-type=geglu} or \code{--rope-frac=0.5}) and the run name. All three runs use seed 42 and 2,520 steps, with the same estimated total of $1.0 \times 10^{18}$ FLOPs. All three start from a validation BPB of 3.16867, because the zero-initialized output projections make the changes invisible at step 0.
 
@@ -306,14 +306,14 @@ CORE and validation loss cannot show whether a model uses context beyond 512 tok
 \end{center}
 The filler is text from the held-out validation shard, and we sweep the distance $d$ from 64 to 1,920 tokens. The model does not generate an answer. We compare the summed log-probability of the true passkey with that of 9 random distractors that have the same number of tokens, and count the example as correct if the true passkey ranks first, so chance is 10\%. We use 200 examples per distance.
 
-In terms of the metric's effectiveness (as drawn from lecture):
+We designed it around the properties of a good eval from lecture:
 \begin{itemize}
-  \item \textbf{Measures the change we made}: It succeeds only if the model can use information that is $d$ tokens back.
-  \item \textbf{Cannot be contaminated}: Since passkeys are random, answers cannot appear in the training data, preventing leakage.
-  \item \textbf{Controlled comparison}: Each example keeps the same passkey and filler at every distance, and only the position of the passkey moves. Since the total length is fixed, a drop in accuracy would mean it came from distance.
-  \item \textbf{Checkpoint separation}: It is easy at short distances and hard beyond the attention window.
-  \item \textbf{Measures error bars}: We give a 95\% confidence interval, $\pm 1.96\sqrt{p(1-p)/n}$, at each distance \cite{errorbars}.
-  \item \textbf{Cheap and reproducible}: Each run takes under 30\,s on 8 H100s and is automatic with fixed seeds.
+  \item \textbf{Measures the change we made}: it succeeds only if the model can use information that is $d$ tokens back.
+  \item \textbf{No contamination}: the passkeys are random, so the answers cannot appear in the training data.
+  \item \textbf{Controlled comparison}: each example keeps the same passkey and filler at every distance, and only the position of the passkey moves. The total length is fixed, so any drop in accuracy comes from distance alone.
+  \item \textbf{Checkpoint separation}: it is easy at short distances and hard beyond the attention window.
+  \item \textbf{Error bars}: we report a 95\% confidence interval, $\pm 1.96\sqrt{p(1-p)/n}$, at each distance \cite{errorbars}.
+  \item \textbf{Cheap and reproducible}: each run takes under 30\,s on 8 GPUs and is automatic with fixed seeds.
 \end{itemize}
 We also run checkpoint 1 with its windows widened to 2,048, without retraining, to test whether it can use context beyond 512 without further training.
 
@@ -351,7 +351,7 @@ We also run checkpoint 1 with its windows widened to 2,048, without retraining, 
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Checkpoint 1 vs.\ checkpoint 2. CORE uses every example of each task. Throughput and MFU are medians over training steps on 8 H100s.}\label{tab:ckpts}
+\caption{Checkpoint 1 vs.\ checkpoint 2. CORE uses every example of each task. Throughput and MFU are medians over training steps on 8 H200s.}\label{tab:ckpts}
 \begin{tabular}{l cc}
 \toprule
  & \textbf{Ckpt 1 (step 2,016)} & \textbf{Ckpt 2 (step 2,520)} \\
@@ -380,16 +380,16 @@ MFU & 40.5\% & 42.0\% \\
 
 \subsection*{Cost}
 
-All runs used 8$\times$H100 on Modal. The estimates per item use Modal's list price of \$3.95 per H100-hour.
+The training logs show that both phases ran on 8 H200s on Modal. The per-item estimates below use the H100 list price we planned with, \$3.95 per GPU-hour; at the H200 price of \$4.54 they would be about 15\% higher. The last row is Modal's actual bill.
 
 {\small
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Compute for Part 4 (8$\times$H100).}\label{tab:cost4}
+\caption{Compute for Part 4 (8 GPUs).}\label{tab:cost4}
 \begin{tabular}{l r r}
 \toprule
-\textbf{Item} & \textbf{Wall-clock} & \textbf{H100-hours} \\
+\textbf{Item} & \textbf{Wall-clock} & \textbf{GPU-hours} \\
 \midrule
 Phase 1 training (2,016 steps, median 112\,ms/step) & 3.8 min & 0.50 \\
 Phase 2 training (504 steps, median 120\,ms/step) & 1.0 min & 0.13 \\
