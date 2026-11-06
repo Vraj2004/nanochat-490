@@ -54,6 +54,7 @@ parser.add_argument("--max-seq-len", type=int, default=2048, help="max context l
 parser.add_argument("--window-pattern", type=str, default="SSSL", help="sliding window pattern tiled across layers: L=full, S=half context (e.g. 'SSL')")
 parser.add_argument("--mlp-type", type=str, default="relu2", choices=["relu2", "geglu"], help="MLP type (ablation)")
 parser.add_argument("--rope-frac", type=float, default=1.0, help="fraction of each head's dims that RoPE rotates (ablation)")
+parser.add_argument("--seed", type=int, default=42, help="random seed for the weight init (42 = compute_init's default), e.g. to measure seed noise")
 # Training horizon (only one used, in order of precedence)
 parser.add_argument("--num-iterations", type=int, default=-1, help="explicit number of optimization steps (-1 = disable)")
 parser.add_argument("--target-flops", type=float, default=-1.0, help="calculate num_iterations to reach target_flops (-1 = disable)")
@@ -86,6 +87,7 @@ user_config = vars(args).copy()  # for logging
 
 device_type = autodetect_device_type() if args.device_type == "" else args.device_type
 ddp, ddp_rank, ddp_local_rank, ddp_world_size, device = compute_init(device_type)
+torch.manual_seed(args.seed) # compute_init seeds 42; the global rng only drives the weight init, all devices
 master_process = ddp_rank == 0 # this process will do logging, checkpointing etc.
 synchronize = torch.cuda.synchronize if device_type == "cuda" else lambda: None
 get_max_memory = torch.cuda.max_memory_allocated if device_type == "cuda" else lambda: 0
