@@ -207,7 +207,8 @@ class GPT(nn.Module):
         # As for rotary_seq_len, these rotary embeddings are pretty small/cheap in memory,
         # so let's just over-compute them by 10X, but assert fail if we ever reach that amount.
         # In the future we can dynamically grow the cache, for now it's fine.
-        self.rotary_seq_len = config.sequence_len * 10 # 10X over-compute should be enough, TODO make nicer?
+        # Floor at the 2048-context size: evals (e.g. CORE's 10-shot prompts, ~5K tokens) don't shrink with a short training context.
+        self.rotary_seq_len = max(config.sequence_len, 2048) * 10 # 10X over-compute should be enough, TODO make nicer?
         cos, sin = self._precompute_rotary_embeddings(self.rotary_seq_len, self._rotary_dim())
         self.register_buffer("cos", cos, persistent=False) # persistent=False means it's not saved to the checkpoint
         self.register_buffer("sin", sin, persistent=False)

@@ -71,6 +71,7 @@ parser.add_argument("--warmup-steps", type=int, default=40, help="number of step
 parser.add_argument("--warmdown-ratio", type=float, default=0.65, help="ratio of iterations for LR warmdown")
 parser.add_argument("--final-lr-frac", type=float, default=0.05, help="final LR as fraction of initial LR")
 parser.add_argument("--resume-from-step", type=int, default=-1, help="resume training from this step (-1 = disable)")
+parser.add_argument("--stop-at-step", type=int, default=-1, help="save a checkpoint and exit at this step, keeping the LR schedule of the full run, e.g. to resume at a longer --max-seq-len (-1 = disable)")
 # Evaluation
 parser.add_argument("--eval-every", type=int, default=250, help="evaluate val bpb every N steps (-1 = disable)")
 parser.add_argument("--eval-tokens", type=int, default=80*524288, help="number of tokens to evaluate val loss on")
@@ -360,6 +361,9 @@ total_tokens = total_batch_size * num_iterations # the actual number of tokens w
 print0(f"Total number of training tokens: {total_tokens:,}")
 print0(f"Tokens : Scaling params ratio: {total_batch_size * num_iterations / num_scaling_params:.2f}") # e.g. Chinchilla was ~20
 print0(f"Total training FLOPs estimate: {num_flops_per_token * total_tokens:e}")
+if args.stop_at_step != -1:
+    assert max(args.resume_from_step, 0) < args.stop_at_step < num_iterations, f"--stop-at-step must be between the start step and num_iterations ({num_iterations})"
+    print0(f"Stopping early at step {args.stop_at_step:,} (LR schedule still spans {num_iterations:,} steps)")
 
 # Learning rate schedule (linear warmup, constant, linear warmdown)
 def get_lr_multiplier(it):
@@ -419,7 +423,7 @@ print0(f"Total batch size {total_batch_size:,} => gradient accumulation steps: {
 
 # Go!
 while True:
-    last_step = step == num_iterations # loop runs num_iterations+1 times so that we can eval/save at the end
+    last_step = step == num_iterations or step == args.stop_at_step # loop runs one extra time so that we can eval/save at the end
     flops_so_far = num_flops_per_token * total_batch_size * step
 
     # once in a while: evaluate the val bpb (all ranks participate)
