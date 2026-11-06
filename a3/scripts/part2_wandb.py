@@ -29,6 +29,8 @@ RUNS = {
     "rope50": ("nnf5934f", "#1baf7a", "^", "Partial RoPE (50%)"),
 }
 CHANGES = ("geglu", "rope50")
+# Partial RoPE rerun with a different seed. Used to estimate seed noise and left out of the figures.
+SEED_RUN = ("rope50_seed1337", "6xgo0v64")
 TEXT = "#0b0b0b"
 MUTED = "#52514e"
 GRID = "#e4e3df"
@@ -122,8 +124,7 @@ def plot_tasks(data):
 def write_summary(data):
     base = data["baseline"]
     rows = []
-    for name in RUNS:
-        run = data[name]
+    for name, run in data.items():
         last = max(run["val"])
         last_core = max(run["core"])
         rows.append({
@@ -152,11 +153,15 @@ def write_summary(data):
               f"up {sum(g > 0 for g in gaps)}, down {sum(g < 0 for g in gaps)}")
         val_gaps = {s: round(v - base["val"][s], 5) for s, v in data[name]["val"].items() if s > 0}
         print(f"{name}: val gaps by step {val_gaps}")
+    seed42, seed1337 = data["rope50"], data[SEED_RUN[0]]
+    print(f"seed difference: val {abs(seed1337['val'][2520] - seed42['val'][2520]):.5f}, "
+          f"CORE {abs(seed1337['core'][2520] - seed42['core'][2520]):.4f}")
 
 
 def main():
     api = wandb.Api(timeout=120)
     data = {name: load_run(api, spec[0]) for name, spec in RUNS.items()}
+    data[SEED_RUN[0]] = load_run(api, SEED_RUN[1])
     FIGURES.mkdir(exist_ok=True)
     plot_training(data)
     plot_tasks(data)
