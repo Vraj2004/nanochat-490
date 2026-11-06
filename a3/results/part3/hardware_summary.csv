@@ -1,0 +1,5 @@
+run,gpu,architecture,num_gpus,peak_tflops_per_gpu,bandwidth_tbps_per_gpu,price_per_hour,train_minutes,tok_per_sec,tok_per_sec_per_gpu,mfu_pct,train_cost_usd,cost_per_billion_tokens,val_bpb
+d12_hw_h100_part_two,H100,Hopper,1,989,3.35,3.95,42.72,515064,515064,39.6,2.81,2.13,0.849392
+d12_hw_a100_part_two,A100 80GB,Ampere,1,312,2.0,2.5,101.17,216605,216605,52.7,4.22,3.21,0.849426
+d12_hw_l40s_part_two,L40S,Ada,1,362,0.864,1.95,144.91,150932,150932,31.7,4.71,3.59,0.849554
+d12_geglu,8x H200 (Part 2),Hopper,8,989,4.8,36.32,5.45,4141302,517663,39.8,3.3,2.44,0.847538

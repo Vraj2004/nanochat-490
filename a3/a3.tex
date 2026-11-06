@@ -153,6 +153,12 @@ No new parameters or FLOPs. We expect no effect at a fixed context length; any b
 
 \section*{Part 2: Ablations on a Nano Nanochat}
 
+\subsection*{Picochat Configuration and Cost}
+
+\textbf{Why d12.} Our picochat is d12: 12 layers, width 768 and 6 heads, with 110M scaling parameters (286M in total, counting the embedding and value-embedding tables). At nanochat's default of 12 tokens per scaling parameter it trains on 1.32B tokens ($1.0 \times 10^{18}$ FLOPs) in about 5 minutes on 8 GPUs. d12 is also nanochat's reference depth: its batch size and learning rates are tuned at d12 and transferred to larger depths \cite{nanochat}, so each change is tested at the settings the code was tuned for. A smaller model would be cheaper but further from those settings and from the scale of our final model, and a larger one costs much more per run; the d20 in Part 5 needs 15 times the compute.
+
+\textbf{Cost.} At Modal's list prices, the training time of the three runs cost \$3.17 (baseline, 8 H200s), \$3.30 (GeGLU, 8 H200s) and \$2.85 (partial RoPE, 8 H100s). A job also pays for container startup, model compilation and evaluation. The seed rerun below was billed \$6.34 for 5 minutes of training, about 2.1 times its training cost, so the three runs cost about \$20 in total. We kept costs down by checking each change with a 100-step smoke test before its full run, by training at d12 rather than a larger size, and by using 8 GPUs per run: Part 3 shows that 8 GPUs process tokens at almost the same rate per GPU as a single H100, so a run costs about the same but finishes 8 times sooner.
+
 \subsection*{Results}
 
 We tracked every run in the team's Weights \& Biases (W\&B) project:
@@ -210,9 +216,58 @@ MFU (\%) & 41.6 & 39.9 & 39.4 \\
 \label{fig:part2-core}
 \end{figure}
 
+\subsection*{How the Results May Translate to a Larger Run}
+
+We expect partial RoPE to stay neutral at larger scale and GeGLU to stay slightly worse. For partial RoPE we checked this directly: Part 5 trains a d20 baseline alongside the final d20 with partial RoPE, and the gap there (0.0004 BPB and 0.007 CORE in partial RoPE's favour) is again smaller than the seed-to-seed difference above. We did not retest GeGLU at d20, but nanochat's development log reports the same result for SwiGLU, a gated MLP that differs from GeGLU only in its activation: it was worse than ReLU$^2$ at both d12 and d24, per step, in wall-clock time and per FLOP \cite{nanochat}. One reason a small-scale result like this can carry over is that nanochat tunes its learning rates and other hyperparameters at d12 for the ReLU$^2$ MLP and transfers them to larger depths, so a gated MLP runs with settings tuned for the baseline at every size. In Shazeer's T5 experiments, by contrast, gated MLPs beat ReLU and GELU \cite{glu}, so GeGLU might do better here with its own tuning. Its 4\% slowdown would also apply to every step of a longer run.
+
 \newpage
 
 \section*{Part 3: Hardware Efficiency Curves}
+
+\subsection*{Hardware Choices}
+
+We re-ran the GeGLU picochat from Part 2 (d12, 2,520 steps, $1.0 \times 10^{18}$ FLOPs, seed 42) on one GPU of each of three types, chosen to cover different generations, prices and memory systems:
+\begin{itemize}[leftmargin=1.2em, itemsep=0em, topsep=0.1em, parsep=0em]
+  \item \textbf{H100} (Hopper): the GPU that nanochat's speedrun targets, with the most compute and the highest hourly price of the three.
+  \item \textbf{A100 80GB} (Ampere): the previous generation, with a third of the H100's peak compute at 63\% of its price.
+  \item \textbf{L40S} (Ada): the cheapest per hour, with slightly more peak compute than the A100 but GDDR6 memory instead of HBM, at less than half the A100's bandwidth.
+\end{itemize}
+Each run used a single GPU, so the comparison measures the chips rather than communication between GPUs; with one GPU, nanochat reaches the same 524K-token batch with 8 gradient accumulation steps. All three runs used FlashAttention-3. For reference we also include the 8-GPU H200 GeGLU run from Part 2. Training cost is training time multiplied by Modal's list price, so it leaves out container startup, compilation and evaluation.
+
+\subsection*{Results}
+
+\begin{table}[H]
+\centering
+\caption{Hardware results for the GeGLU picochat (d12). Throughput and MFU are medians over the logged steps after the first five. Peak compute (dense bf16) and memory bandwidth are per GPU, as listed in nanochat's code. Cost is training time multiplied by Modal's list price. The last row is the Part 2 GeGLU run; its throughput and MFU from the training log differ slightly from the W\&B medians in Table~\ref{tab:part2-results}.}
+\label{tab:part3}
+\small
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+GPU & \shortstack[r]{Peak\\TFLOP/s} & \shortstack[r]{Bandwidth\\(TB/s)} & \shortstack[r]{Price\\(\$/h)} & \shortstack[r]{Time\\(min)} & \shortstack[r]{Tokens/s\\per GPU} & \shortstack[r]{MFU\\(\%)} & \shortstack[r]{Cost\\(\$)} & \shortstack[r]{Val\\BPB} \\
+\midrule
+H100 & 989 & 3.35 & 3.95 & 42.7 & 515K & 39.6 & 2.81 & 0.8494 \\
+A100 80GB & 312 & 2.00 & 2.50 & 101.2 & 217K & 52.7 & 4.22 & 0.8494 \\
+L40S & 362 & 0.86 & 1.95 & 144.9 & 151K & 31.7 & 4.71 & 0.8496 \\
+\midrule
+$8 \times$ H200 (Part 2) & 989 & 4.80 & 36.32 & 5.5 & 518K & 39.8 & 3.30 & 0.8475 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{part3_hardware.pdf}
+\caption{Training time against training cost for the same GeGLU picochat on each setup. Circles are single GPUs; the square is the 8-GPU run from Part 2.}
+\label{fig:part3}
+\end{figure}
+
+\textbf{Speed and cost.} The H100 was the fastest, at 2.4 times the A100's throughput and 3.4 times the L40S's, and also the cheapest per run: \$2.81, against \$4.22 for the A100 and \$4.71 for the L40S. A run's cost is the hourly price divided by throughput, and the H100's speed advantage is larger than its price premium. Per billion training tokens it costs \$2.13, against \$3.21 for the A100 and \$3.59 for the L40S. The L40S has the lowest hourly price but is the slowest and the most expensive per run.
+
+\textbf{MFU.} MFU counts only the matrix multiplications, measured against each GPU's peak compute. Everything else in a step, including normalization, activations, the optimizer update and data movement, adds time that MFU does not count, and much of it is limited by memory bandwidth rather than compute. The H100 has 3.2 times the A100's peak compute but only 1.7 times its bandwidth, so this other work takes a larger share of each step, and its MFU is lower (40\% against 53\%) even though it is much faster. The L40S has slightly more peak compute than the A100 but 43\% of its bandwidth, which fits its lower throughput and the lowest MFU of the three (32\%).
+
+\textbf{Multiple GPUs.} The 8-GPU H200 run processed 518K tokens per second per GPU, within 1\% of the single H100 (the H200 has the same peak compute), so splitting the batch across 8 GPUs scaled almost linearly. Its training cost of \$3.30 is 17\% above the single H100's, close to the H200's 15\% higher price, but it finished in 5.5 minutes instead of 43. Its final BPB is also 0.002 lower than the single-GPU runs, more than the seed noise from Part 2. We did not investigate this; a likely cause is that with 8 GPUs each one reads a different part of the data, so the two setups see the training tokens in a different order.
+
+\textbf{Recommendation.} For this model an H100 or H200 is both the fastest and the cheapest option, and using 8 of them costs about the same as one while cutting the wait from 43 minutes to under 6. The A100 is a reasonable fallback, and the L40S is a poor fit for training despite its low price. These results come from one run per GPU, and the costs leave out startup and evaluation, which roughly doubled the bill of a d12 run (Part 2).
 
 \newpage
 
