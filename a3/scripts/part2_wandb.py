@@ -1,4 +1,4 @@
-"""Build the A3 Part 2 summary table data and figures from the team's W&B runs.
+"""Print the A3 Part 2 summary numbers and build the figures from the team's W&B runs.
 
 Reads the runs only; nothing is written back to W&B. Needs WANDB_API_KEY in the
 environment. Run from the repository root:
@@ -7,7 +7,6 @@ environment. Run from the repository root:
         python a3/scripts/part2_wandb.py
 """
 
-import csv
 from pathlib import Path
 from statistics import mean, median, stdev
 
@@ -121,7 +120,7 @@ def plot_tasks(data):
     plt.close(fig)
 
 
-def write_summary(data):
+def print_summary(data):
     base = data["baseline"]
     rows = []
     for name, run in data.items():
@@ -140,10 +139,6 @@ def write_summary(data):
             "median_mfu_pct": round(run["mfu"], 2),
             "train_minutes": round(run["train_seconds"] / 60, 2),
         })
-    with open(A3_DIR / "part2_summary.csv", "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-        writer.writeheader()
-        writer.writerows(rows)
     for row in rows:
         print(row)
     for name in CHANGES:
@@ -165,7 +160,7 @@ def main():
     FIGURES.mkdir(exist_ok=True)
     plot_training(data)
     plot_tasks(data)
-    write_summary(data)
+    print_summary(data)
 
 
 if __name__ == "__main__":
