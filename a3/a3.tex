@@ -527,35 +527,35 @@ Prompts correct (of 99) & -- & 49 & -- & 72 \\
 
 \subsection*{Emergent Abilities}
 
-Wei et al.\ call an ability emergent if it is absent in smaller models but present in larger ones \cite{wei-emergent}. To look for such abilities, we gave the d12 partial RoPE picochat and the d20 nanochat the same 99 short prompts on geography, science, history, language and arithmetic. Both are base models without chat finetuning, so each prompt is the start of a sentence, such as ``The capital of Japan is'', and each model continues it for 12 tokens with greedy decoding. A script marked a completion correct if an accepted answer appeared in its first six words; we then read every completion and corrected three of its verdicts. After that review the picochat answered 49 prompts correctly and the nanochat 72. The nanochat was right and the picochat wrong on 24 prompts, and the reverse happened once. Table~\ref{tab:emergent} lists 10 of the 24.
+Wei et al.\ call an ability emergent if it is absent in smaller models but present in larger ones \cite{wei-emergent}. To look for such abilities, we gave the d12 partial RoPE picochat and the d20 nanochat the same 99 short prompts on geography, science, history, language and arithmetic. Both are base models without chat finetuning, so they continue text rather than answer questions. We therefore posed each question as the start of a sentence, asking ``What is the capital of Japan?'' as ``The capital of Japan is'', and each model continues it for 12 tokens with greedy decoding. A script marked a completion correct if an accepted answer appeared in its first six words; we then read every completion and corrected three of its verdicts. After that review the picochat answered 49 prompts correctly and the nanochat 72. The nanochat was right and the picochat wrong on 24 prompts, and the reverse happened once. Table~\ref{tab:emergent} lists 10 of the 24.
 
 {\small
 \renewcommand{\arraystretch}{1.3}
 \begin{longtable}{L{5.4cm} L{4.6cm} L{4.4cm}}
-\caption{Ten prompts the nanochat answers correctly and the picochat does not (greedy completions, trimmed).}\label{tab:emergent}\\
+\caption{Ten questions the nanochat answers correctly and the picochat does not. Each question was given to both base models as the sentence prompt in italics, and the columns show their greedy completions, trimmed.}\label{tab:emergent}\\
 \toprule
-\textbf{Prompt} & \textbf{Picochat (d12)} & \textbf{Nanochat (d20)} \\
+\textbf{Question (prompt)} & \textbf{Picochat (d12)} & \textbf{Nanochat (d20)} \\
 \midrule
 \endfirsthead
 
 \toprule
-\textbf{Prompt} & \textbf{Picochat (d12)} & \textbf{Nanochat (d20)} \\
+\textbf{Question (prompt)} & \textbf{Picochat (d12)} & \textbf{Nanochat (d20)} \\
 \midrule
 \endhead
 
 \bottomrule
 \endfoot
 
-1. The capital of Japan is & Hokkaido, which is the capital of the & Tokyo. \\
-2. The capital of India is & Karnataka, which is the capital of the country & New Delhi. \\
-3. The Mona Lisa was painted by & the French artist Pierre de Coubertin in 17 & Leonardo da Vinci in 1503. \\
-4. The freezing point of water in degrees Celsius is & 32 degrees Celsius. & 0 degrees Celsius. \\
-5. The powerhouse of the cell is the & nucleus. & mitochondria. \\
-6. The hardest natural substance on Earth is & water. & diamond. \\
-7. The first person to walk on the Moon was & a man named Apollo 11, who was born in & Neil Armstrong, who walked on the Moon on July \\
-8. The telephone was invented by & the French in 1860 & Alexander Graham Bell in 1876. \\
-9. The plural of mouse is & mouse. & mice. \\
-10. The main language spoken in Brazil is & the native language of the country. & Portuguese. \\
+1. What is the capital of Japan? \newline \textit{The capital of Japan is} & Hokkaido, which is the capital of the & Tokyo. \\
+2. What is the capital of India? \newline \textit{The capital of India is} & Karnataka, which is the capital of the country & New Delhi. \\
+3. Who painted the Mona Lisa? \newline \textit{The Mona Lisa was painted by} & the French artist Pierre de Coubertin in 17 & Leonardo da Vinci in 1503. \\
+4. At what temperature, in degrees Celsius, does water freeze? \newline \textit{The freezing point of water in degrees Celsius is} & 32 degrees Celsius. & 0 degrees Celsius. \\
+5. What is the powerhouse of the cell? \newline \textit{The powerhouse of the cell is the} & nucleus. & mitochondria. \\
+6. What is the hardest natural substance on Earth? \newline \textit{The hardest natural substance on Earth is} & water. & diamond. \\
+7. Who was the first person to walk on the Moon? \newline \textit{The first person to walk on the Moon was} & a man named Apollo 11, who was born in & Neil Armstrong, who walked on the Moon on July \\
+8. Who invented the telephone? \newline \textit{The telephone was invented by} & the French in 1860 & Alexander Graham Bell in 1876. \\
+9. What is the plural of ``mouse''? \newline \textit{The plural of mouse is} & mouse. & mice. \\
+10. What is the main language spoken in Brazil? \newline \textit{The main language spoken in Brazil is} & the native language of the country. & Portuguese. \\
 
 \end{longtable}
 }
