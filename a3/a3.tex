@@ -275,6 +275,137 @@ $8 \times$ H200 (Part 2) & 989 & 4.80 & 36.32 & 5.5 & 518K & 39.8 & 3.30 & 0.847
 
 \section*{Part 4: Extending the Context Window}
 
+\subsection*{Setup}
+
+We trained the unchanged July d12 picochat without any ablation from Part 2 for 2,520 steps of 524,288 tokens: 1.32B tokens of ClimbMix \cite{climbmix}, the same budget as the Part 2 baseline (a tokens-to-parameters ratio of 12). The run uses one learning-rate schedule split into two phases:
+\begin{itemize}
+  \item \textbf{Phase 1 (checkpoint 1):} steps 0--2,016 (80\%, 1.06B tokens) at a sequence length of 512. We raise the per-GPU batch from 32 to 128 rows so that each step still sees 524,288 tokens.
+  \item \textbf{Phase 2 (checkpoint 2):} resume checkpoint 1, including its optimizer state and data position, and train steps 2,016--2,520 (20\%, 0.26B tokens) at a sequence length of 2,048, with the per-GPU batch back at 32 rows. The learning-rate schedule continues where phase 1 stopped.
+\end{itemize}
+Phase 1 ends in the middle of the learning-rate decay, so we added a \code{-{}-stop-at-step} flag that saves a checkpoint and exits while keeping the schedule of the full run. The same weights work at both lengths because the RoPE tables are not stored in the checkpoint. The sliding windows scale with the sequence length: 128/512 tokens (short/long layers) at 512 and 512/2,048 at 2,048. Both phases are logged to W\&B (runs \code{d12\_ctx512\_p1\_seq512} and \code{d12\_ctx512\_p2\_seq2048}), the eval outputs and logs are in \code{a3/results/part4/}, and the whole experiment reruns with \code{modal run modal\_train.py::context\_ext}.
+
+\subsection*{Why 512, and why 80/20}
+
+Training at a short length first and extending at the end is standard practice. BERT trained 90\% of its steps at length 128 and the rest at 512 \cite{bert}, and ModernBERT pretrained at 1,024 before extending to 8,192 \cite{modernbert}. Continuing to pretrain a short-context checkpoint matches training at the long length from scratch, at lower cost \cite{xiong}, and only a small amount of long-context training is needed \cite{fu}.
+
+We chose 512 for three reasons:
+\begin{itemize}
+  \item \textbf{512 matches the data}: On one training shard (86,016 documents), the median document is 527 tokens. At 512, 49\% of documents fit whole and 61\% of all tokens lie within the first 512 tokens of their document, so phase 1 still trains on most of the text with its full context. The remaining 39\% need longer context, which is what phase 2 provides: at 2,048, 97\% of documents fit. A shorter length would cut much more (36\% of tokens at 256).
+  \item \textbf{Architecture match}: July's default window pattern, SSSL, gives 9 of the 12 layers a sliding window of a quarter of the sequence length, and the other 3 (layers 4, 8 and 12) attend over the full sequence \cite{nanochat}. At 2,048 the short window is 512, so 512 is already the context that most layers work with in the final model, and only 3 layers attend further.
+  \item \textbf{A small but reasonable extension factor}: 4$\times$ matches BERT's extension and is half of ModernBERT's 8$\times$ \cite{modernbert}, each of which needed only a short final phase.
+\end{itemize}
+The 80/20 split gives phase 2 twice BERT's 10\% share, as a margin for a model as small as d12.
+
+In Part 1 we proposed testing separate local and global RoPE $\theta$ during context extension. We kept July's $\theta = 100{,}000$ in every layer, so that the sequence length is the only difference between the two phases. At a 4$\times$ extension checkpoint 2 already gets at least 97.5\% passkey accuracy (below), so this eval has no room to show a benefit from changing $\theta$.
+
+\subsection*{Our Eval Metric: Passkey Retrieval}
+
+CORE and validation loss cannot show whether a model uses context beyond 512 tokens: CORE prompts are mostly short, and the loss averages over every token position. We built a passkey retrieval eval \cite{landmark}, the same idea as needle-in-a-haystack \cite{niah} and one of the RULER tasks \cite{ruler} (\code{scripts/passkey\_eval.py}). Each example is exactly 2,048 tokens:
+\begin{center}
+\small\texttt{<bos> [filler] The pass key is 48213. Remember it. 48213 is the pass key. [$d$ filler tokens] The pass key is}
+\end{center}
+The filler is text from the held-out validation shard, and we sweep the distance $d$ from 64 to 1,920 tokens. The model does not generate an answer. We compare the summed log-probability of the true passkey with that of 9 random distractors that have the same number of tokens, and count the example as correct if the true passkey ranks first, so chance is 10\%. We use 200 examples per distance.
+
+In terms of the metric's effectiveness (as drawn from lecture):
+\begin{itemize}
+  \item \textbf{Measures the change we made}: It succeeds only if the model can use information that is $d$ tokens back.
+  \item \textbf{Cannot be contaminated}: Since passkeys are random, answers cannot appear in the training data, preventing leakage.
+  \item \textbf{Controlled comparison}: Each example keeps the same passkey and filler at every distance, and only the position of the passkey moves. Since the total length is fixed, a drop in accuracy would mean it came from distance.
+  \item \textbf{Checkpoint separation}: It is easy at short distances and hard beyond the attention window.
+  \item \textbf{Measures error bars}: We give a 95\% confidence interval, $\pm 1.96\sqrt{p(1-p)/n}$, at each distance \cite{errorbars}.
+  \item \textbf{Cheap and reproducible}: Each run takes under 30\,s on 8 H100s and is automatic with fixed seeds.
+\end{itemize}
+We also run checkpoint 1 with its windows widened to 2,048, without retraining, to test whether it can use context beyond 512 without further training.
+
+\subsection*{Results}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part4_passkey.pdf}
+  \caption{Passkey accuracy against distance at a total length of 2,048 tokens (200 examples per point; shaded: 95\% CI).}
+  \label{fig:passkey}
+\end{figure}
+
+{\small
+\renewcommand{\arraystretch}{1.15}
+\begin{table}[H]
+\centering
+\caption{Passkey accuracy (\%) $\pm$ 95\% CI. Chance is 10\%.}\label{tab:passkey}
+\begin{tabular}{r ccc}
+\toprule
+\textbf{Distance} & \textbf{Ckpt 1, as trained} & \textbf{Ckpt 1, windows widened} & \textbf{Ckpt 2 (512 $\rightarrow$ 2,048)} \\
+\midrule
+64--256 & 100.0 & 100.0 & 100.0 \\
+384 & 100.0 & 99.0 $\pm$ 1.4 & 100.0 \\
+512 & 9.0 $\pm$ 4.0 & 93.5 $\pm$ 3.4 & 100.0 \\
+768 & 8.5 $\pm$ 3.9 & 86.0 $\pm$ 4.8 & 100.0 \\
+1,024 & 8.5 $\pm$ 3.9 & 47.5 $\pm$ 6.9 & 100.0 \\
+1,536 & 9.0 $\pm$ 4.0 & 29.5 $\pm$ 6.3 & 99.5 $\pm$ 1.0 \\
+1,920 & 8.5 $\pm$ 3.9 & 28.5 $\pm$ 6.3 & 97.5 $\pm$ 2.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+}
+
+{\small
+\renewcommand{\arraystretch}{1.15}
+\begin{table}[H]
+\centering
+\caption{Checkpoint 1 vs.\ checkpoint 2. CORE uses every example of each task. Throughput and MFU are medians over training steps on 8 H100s.}\label{tab:ckpts}
+\begin{tabular}{l cc}
+\toprule
+ & \textbf{Ckpt 1 (step 2,016)} & \textbf{Ckpt 2 (step 2,520)} \\
+\midrule
+Training sequence length & 512 & 512 $\rightarrow$ 2,048 \\
+Tokens seen & 1.06B & 1.32B \\
+Mean passkey accuracy, $d \geq 512$ & 8.7\% & 99.4\% \\
+CORE & 0.141 & 0.151 \\
+Validation bpb (at its own length) & 0.914 (512) & 0.846 (2,048) \\
+Throughput (tokens/s) & 4.67M & 4.38M \\
+MFU & 40.5\% & 42.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+}
+
+\textbf{Checkpoint 1 cannot use context beyond 512 tokens.} Its accuracy is 100\% up to a distance of 384 and falls to chance (8.5--9\%) from 512 onward, exactly at its attention window.
+
+\textbf{Widening the windows alone only partly works.} With its windows widened to 2,048, checkpoint 1 still finds the passkey 86\% of the time at a distance of 768, but this drops to 47.5\% at 1,024 and to about 29\% at 1,536--1,920. That is still about three times better than guessing, so the model can reach somewhat past the 512 tokens it was trained on, but the further the passkey is beyond that, the worse it does, because the model never saw distances beyond 512 during training.
+
+\textbf{20\% of the tokens at 2,048 is enough.} After 504 steps (0.26B tokens) at 2,048, checkpoint 2 gets at least 97.5\% at every distance, and its mean accuracy at distances of 512 or more rises from 8.7\% to 99.4\%.
+
+\textbf{Extending does not hurt short-context ability.} CORE rises from 0.141 to 0.151. Checkpoint 2 trained on 25\% more tokens, so we do not attribute the CORE gain to the longer context. The passkey gap cannot come from this extra training, though: the two checkpoints are identical at distances up to 384 and differ only from 512 onward. The two bpb values are not comparable, because checkpoint 2 is measured with 4$\times$ more context.
+
+\textbf{Compared with training at 2,048 throughout.} The Part 2 baseline is the same d12 trained for the same 2,520 steps at 2,048 the whole time, so it is the control for this recipe. With the evals both runs logged during training (validation BPB, and CORE on 500 examples per task, so these CORE values differ from Table~\ref{tab:ckpts}), checkpoint 2 finishes 0.0039 BPB worse (0.8492 vs 0.8454) and 0.012 CORE lower (0.1615 vs 0.1734). The CORE gap is within the 0.013 difference between two seeds in Part 2, but the BPB gap is five times their 0.0008 difference. At d12 the recipe therefore costs a little quality for a 7\% higher throughput during phase 1, which is why the final model in Part 5 does not use it.
+
+\subsection*{Cost}
+
+All runs used 8$\times$H100 on Modal. The estimates per item use Modal's list price of \$3.95 per H100-hour.
+
+{\small
+\renewcommand{\arraystretch}{1.15}
+\begin{table}[H]
+\centering
+\caption{Compute for Part 4 (8$\times$H100).}\label{tab:cost4}
+\begin{tabular}{l r r}
+\toprule
+\textbf{Item} & \textbf{Wall-clock} & \textbf{H100-hours} \\
+\midrule
+Phase 1 training (2,016 steps, median 112\,ms/step) & 3.8 min & 0.50 \\
+Phase 2 training (504 steps, median 120\,ms/step) & 1.0 min & 0.13 \\
+\code{torch.compile} warm-up (per launch) & 1.8 min & 0.24 \\
+Passkey evals (3 runs) & 1.3 min & 0.17 \\
+CORE + bpb evals (2 checkpoints) & 5.9 min & 0.79 \\
+\midrule
+One uninterrupted end-to-end run (incl.\ periodic val bpb) & $\approx$20 min & $\approx$2.7 ($\approx$\$11) \\
+Billed by Modal, incl.\ smoke test and failed attempts & & \$21.68 \\
+\bottomrule
+\end{tabular}
+\end{table}
+}
+
+Training itself was about 5 minutes of wall-clock time, while evals, \code{torch.compile} warm-up and failed attempts used most of the rest. We tested the pipeline first in a 100-step run on one H100. Three 8-GPU attempts failed: two were cancelled when the launching terminal was interrupted, and one crashed because the RoPE table was too short for some CORE prompts. We fixed both and saved a checkpoint every 500 steps, so each failure lost only a few minutes of training.
+
 \newpage
 
 \section*{Part 5: Training Our Final Nanochat}
@@ -507,6 +638,27 @@ J. Wei et al., ``Emergent Abilities of Large Language Models,'' \textit{Transact
 
 \bibitem{schaeffer-mirage}
 R. Schaeffer, B. Miranda, and S. Koyejo, ``Are Emergent Abilities of Large Language Models a Mirage?,'' \textit{NeurIPS}, 2023. arXiv:2304.15004.
+
+\bibitem{climbmix}
+S. Diao et al., ``CLIMB: CLustering-based Iterative Data Mixture Bootstrapping for Language Model Pre-training,'' arXiv:2504.13161, 2025.
+
+\bibitem{xiong}
+W. Xiong et al., ``Effective Long-Context Scaling of Foundation Models,'' \textit{NAACL}, 2024. arXiv:2309.16039.
+
+\bibitem{fu}
+Y. Fu et al., ``Data Engineering for Scaling Language Models to 128K Context,'' \textit{ICML}, 2024. arXiv:2402.10171.
+
+\bibitem{landmark}
+A. Mohtashami and M. Jaggi, ``Landmark Attention: Random-Access Infinite Context Length for Transformers,'' \textit{NeurIPS}, 2023. arXiv:2305.16300.
+
+\bibitem{niah}
+G. Kamradt, ``Needle In A Haystack: Pressure Testing LLMs,'' GitHub, 2023. \url{https://github.com/gkamradt/LLMTest_NeedleInAHaystack}
+
+\bibitem{ruler}
+C.-P. Hsieh et al., ``RULER: What's the Real Context Size of Your Long-Context Language Models?,'' \textit{COLM}, 2024. arXiv:2404.06654.
+
+\bibitem{errorbars}
+E. Miller, ``Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations,'' arXiv:2411.00640, 2024.
 
 \end{thebibliography}
 

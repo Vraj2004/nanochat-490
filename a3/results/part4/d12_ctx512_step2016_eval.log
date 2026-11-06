@@ -1,0 +1,109 @@
+Autodetected device type: cuda
+2026-11-04 13:15:44,514 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 8
+2026-11-04 13:15:44,515 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/base_checkpoints/d12_ctx512 with step 2016
+2026-11-04 13:15:44,927 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 512, 'vocab_size': 32768, 'n_layer': 12, 'n_head': 6, 'n_kv_head': 6, 'n_embd': 768, 'window_pattern': 'SSSL'}
+Evaluating model: base_model (step 2016)
+Eval modes: bpb, core, sample
+
+================================================================================
+Model Samples
+================================================================================
+
+Conditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>The capital of France is the capital of the French Republic. The capital of the French Republic is the capital
+--------------------------------------------------------------------------------
+<|bos|>The chemical symbol of gold is Au. It is a soft, silvery metal that is very malleable and duct
+--------------------------------------------------------------------------------
+<|bos|>If yesterday was Friday, then tomorrow will be Friday. I'm not sure if it's a good time to be in the
+--------------------------------------------------------------------------------
+<|bos|>The opposite of hot is cold. The opposite of hot is cold. The opposite of hot is cold.
+--------------------------------------------------------------------------------
+<|bos|>The planets of the solar system are: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Ne
+--------------------------------------------------------------------------------
+<|bos|>My favorite color is red. I love it when I see it. I love it when I see
+--------------------------------------------------------------------------------
+<|bos|>If 5*x + 3 = 13, then x is the number of 5*x + 3, and x is the number
+
+Unconditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>If the high dollar dog market is going to go too far in ensuring that retailers maintain an appealing reputation, what can your customers keep on their credit report to embrace and profit from high quality food?
+You can ensure the riot arises from the thousands.
+I notice when it comes to allergies and intolerances in the shopping mall like a daily blog, you read through a list of common foods.
+If the owner knows you box up for the school competition, you probably have encountered the thought of readmud.
+If you buy out of Walmart with a 10/30 chance of a launch phishing scheme, you probably want to trouble yourself with
+--------------------------------------------------------------------------------
+<|bos|>Many things produced in the perfume industry, such as tanning beds, printing machines, oils, resins, coolants, and staging schemes, were manufactured during the initial phases of the perfume production lifecycle. The use of natural distillation needles during the 1930s and early 1940s led to extremely low prices and faster production rates so that the market rose to replace this trend. Current developments include synthetic dyes, effective fragrances and fragrances for deodorant, fragrances beginning in 1977, and whole body perfumes with terpenes and ingredients now produced as new distillers equip their fleets with performance products.
+--------------------------------------------------------------------------------
+<|bos|>Your description isn't very accurate. Perhaps not surprisingly, this is exactly the case for both classic and classic machine settings (give or take), for example: Peak Rendering, Peak Watch Watch Warning, Peak Start , Peak Speedlight, Pre Rendering, Peak Router. Even for machines with standalone internet (IE that don't have internet uses only long-life internet), there are always exceptions. For spotlights with only a few minutes on uninterrupted, the answer is simply "I don't see".
+The thing to bear in mind, is that this is just the data and don't affect the meat. So no, its not
+--------------------------------------------------------------------------------
+<|bos|>Model,
+VLocerator,
+Potential supplier for decentralized energy by our coal-fired units.
+The timing was set for our nuclear splitting plants at 20 minutes (DTBB) on Tuesday, Apr.13. February 1 and Tuesday, Feb. 15 were the last dates on the dates to be updated on that date.
+The demand is more variable than other Agreements, other equipment, management practices, and policies.
+The combination of both has very far-reaching effects on renewable generation.
+While there are many problems reported, problems with a PDB are the most common issue and issues are usually explored in emergency.
+The field of clean
+--------------------------------------------------------------------------------
+<|bos|>Dive for the rich: You can fly directly to exaltation
+Dive for the rich: Dive for the rich]
+Anthocyanins: These are concentrated species, giving them their rich color. Healthy foods like citrus and blueberries contain some anthocyanins, and the oval or light-colored leaves and flowers are used as meat flavoring agents.
+Nutrients and calories
+There are no specific nutrients or calorie information for the red cabbage salad. Chlorophyll is essential for photosynthesis in plant, while blue cabbage must be consumed regularly to support its growth. Pectin and dairy are additional nutrients that can be absorbed by leaves as well as
+--------------------------------------------------------------------------------
+<|bos|>These species are commonly fed meat. A Wild Rice Academy spokesperson recommended measuring the nutrient content of certain plants, including fruits, grains and vegetables, while providing a rough guide on how many calories and saturated fat intake can a cat or dog consume for several days.
+Once an individual has reached their optimal weight (not just pounds per square inch), their calorie intake must decrease in order to avoid caloric equilibria and fuel poor metabolism, resulting in excessive cravings and weight gain. Moreover, the cat's intestine produces a body fat source, casting further weight gain on the dog (16).
+The cat's weight must be an independent variable in determining the
+--------------------------------------------------------------------------------
+<|bos|>How bonsai might be a sacred way of healing
+
+Did you upend yoga but lost the motivation? Absolutely now that bonsai exists and does exactly the same jobs 500 years ago, it's getting back to its roots.
+
+It's an ancient way of harnessing nature's forces particularly that extracted the flowers, the seeds and the entire trunk from ninety percent of some of our species' richest and most precious floral resources, such as seeds and buds. Masses of species are vividly coloured and coloured like flowers, with the ''s printed on to the outside of the petals' five of those species in bonsai.
+
+By removing the gifts
+--------------------------------------------------------------------------------
+<|bos|>pointing. Most of us are coming down with trailered handhelds a lot. Also, you no longer have to gauge the display at a glance. In a window as unobtrusively as a smartphone, the line intersecting can be 256.7 degrees. 13.7 kW of conductivity (humidity) is the equivalent of a wall lighter bouncing off the ceiling at a rate of 31.4 G.S. Do you know what percentage of a display is dirty?
+
+Which drains (metal or glass) have a greater capacity to hold negative vapor more rapidly?
+
+What how?
+
+For a specific application
+
+================================================================================
+BPB Evaluation
+================================================================================
+train bpb: 0.914974
+val bpb: 0.914379
+
+================================================================================
+CORE Evaluation
+================================================================================
+Evaluating: hellaswag_zeroshot (0-shot, type: multiple_choice)... accuracy: 0.3539 | centered: 0.1386 | time: 13.78s
+Evaluating: jeopardy (10-shot, type: language_modeling)... accuracy: 0.0066 | centered: 0.0066 | time: 3.14s
+Evaluating: bigbench_qa_wikidata (10-shot, type: language_modeling)... accuracy: 0.2274 | centered: 0.2274 | time: 27.89s
+Evaluating: arc_easy (10-shot, type: multiple_choice)... accuracy: 0.5446 | centered: 0.3928 | time: 4.10s
+Evaluating: arc_challenge (10-shot, type: multiple_choice)... accuracy: 0.2705 | centered: 0.0273 | time: 1.92s
+Evaluating: copa (0-shot, type: multiple_choice)... accuracy: 0.5800 | centered: 0.1600 | time: 0.18s
+Evaluating: commonsense_qa (10-shot, type: multiple_choice)... accuracy: 0.2940 | centered: 0.1175 | time: 1.98s
+Evaluating: piqa (10-shot, type: multiple_choice)... accuracy: 0.6676 | centered: 0.3351 | time: 3.10s
+Evaluating: openbook_qa (0-shot, type: multiple_choice)... accuracy: 0.3100 | centered: 0.0800 | time: 0.72s
+Evaluating: lambada_openai (0-shot, type: language_modeling)... accuracy: 0.2750 | centered: 0.2750 | time: 6.71s
+Evaluating: hellaswag (10-shot, type: multiple_choice)... accuracy: 0.3523 | centered: 0.1364 | time: 17.89s
+Evaluating: winograd (0-shot, type: schema)... accuracy: 0.5934 | centered: 0.1868 | time: 0.37s
+Evaluating: winogrande (0-shot, type: schema)... accuracy: 0.5312 | centered: 0.0624 | time: 1.58s
+Evaluating: bigbench_dyck_languages (10-shot, type: language_modeling)... accuracy: 0.0590 | centered: 0.0590 | time: 1.67s
+Evaluating: agi_eval_lsat_ar (3-shot, type: multiple_choice)... accuracy: 0.2609 | centered: 0.0761 | time: 0.39s
+Evaluating: bigbench_cs_algorithms (10-shot, type: language_modeling)... accuracy: 0.4030 | centered: 0.4030 | time: 1.97s
+Evaluating: bigbench_operators (10-shot, type: language_modeling)... accuracy: 0.1048 | centered: 0.1048 | time: 0.33s
+Evaluating: bigbench_repeat_copy_logic (10-shot, type: language_modeling)... accuracy: 0.0000 | centered: 0.0000 | time: 0.05s
+Evaluating: squad (10-shot, type: language_modeling)... accuracy: 0.1189 | centered: 0.1189 | time: 18.02s
+Evaluating: coqa (0-shot, type: language_modeling)... accuracy: 0.1364 | centered: 0.1364 | time: 11.34s
+Evaluating: boolq (10-shot, type: multiple_choice)... accuracy: 0.5694 | centered: -0.1331 | time: 5.87s
+Evaluating: bigbench_language_identification (10-shot, type: multiple_choice)... accuracy: 0.2562 | centered: 0.1817 | time: 21.61s
+
+Results written to: /data/base_eval/base_model_002016.csv
+CORE metric: 0.1406
