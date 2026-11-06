@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="1000" height="800" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <style>
+      .io   { fill:#eef2f7; stroke:#5b6b80; stroke-width:1.2; }
+      .emb  { fill:#e3f1e3; stroke:#3f7d3f; stroke-width:1.2; }
+      .norm { fill:#fff6d6; stroke:#a8862a; stroke-width:1.2; }
+      .lin  { fill:#e2ecfb; stroke:#3a63a8; stroke-width:1.2; }
+      .attn { fill:#fbe4e4; stroke:#a83a3a; stroke-width:1.2; }
+      .act  { fill:#efe3fb; stroke:#6a3aa8; stroke-width:1.2; }
+      .blk  { fill:#f4f4f4; stroke:#333; stroke-width:1.6; }
+      .panel{ fill:#fafafa; stroke:#888; stroke-width:1.2; stroke-dasharray:6 4; }
+      .t    { text-anchor:middle; dominant-baseline:middle; fill:#111; }
+      .s    { font-size:11px; fill:#444; }
+      .h    { font-size:15px; font-weight:bold; }
+      .wire { stroke:#333; stroke-width:1.4; fill:none; marker-end:url(#arr); }
+      .res  { stroke:#111; stroke-width:3; fill:none; }
+      .dash { stroke:#888; stroke-width:1.2; stroke-dasharray:5 4; fill:none; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="800" fill="#ffffff"/>
+  <text x="190" y="18" class="t h">nanochat GPT (Oct 13, 2025) — d20</text>
+
+  <!-- ===== Left column: full model ===== -->
+  <rect x="60" y="40" width="260" height="36" rx="6" class="io"/>
+  <text x="190" y="58" class="t">Token ids (B, T), T ≤ 2048</text>
+  <path d="M190,76 L190,108" class="wire"/>
+
+  <rect x="60" y="110" width="260" height="40" rx="6" class="emb"/>
+  <text x="190" y="124" class="t">Token embedding wte</text>
+  <text x="190" y="140" class="t s">65,536 × 1,280 · bf16 · no positional emb.</text>
+  <path d="M190,150 L190,178" class="wire"/>
+
+  <rect x="60" y="180" width="260" height="36" rx="6" class="norm"/>
+  <text x="190" y="198" class="t">RMSNorm (no learnable params)</text>
+  <path d="M190,216 L190,248" class="wire"/>
+
+  <rect x="60" y="250" width="260" height="100" rx="8" class="blk"/>
+  <text x="190" y="285" class="t h">Transformer Block</text>
+  <text x="190" y="308" class="t h">× 20</text>
+  <text x="190" y="332" class="t s">(pre-norm, see detail →)</text>
+  <path d="M190,350 L190,388" class="wire"/>
+
+  <rect x="60" y="390" width="260" height="36" rx="6" class="norm"/>
+  <text x="190" y="408" class="t">Final RMSNorm</text>
+  <path d="M190,426 L190,458" class="wire"/>
+
+  <rect x="60" y="460" width="260" height="40" rx="6" class="lin"/>
+  <text x="190" y="474" class="t">lm_head (untied from wte)</text>
+  <text x="190" y="490" class="t s">Linear 1,280 → 65,536 · no bias · zero-init</text>
+  <path d="M190,500 L190,528" class="wire"/>
+
+  <rect x="60" y="530" width="260" height="36" rx="6" class="act"/>
+  <text x="190" y="548" class="t">Logit soft-cap: 15 · tanh(z / 15)</text>
+  <path d="M190,566 L190,598" class="wire"/>
+
+  <rect x="60" y="600" width="260" height="46" rx="6" class="io"/>
+  <text x="190" y="616" class="t">Train: fp32 cross-entropy (ignore −1)</text>
+  <text x="190" y="634" class="t">Infer: logits → sample</text>
+
+  <rect x="60" y="672" width="260" height="46" rx="6" class="emb" style="stroke-dasharray:4 3"/>
+  <text x="190" y="688" class="t s">Shared buffers: RoPE cos/sin, θ = 10,000</text>
+  <text x="190" y="704" class="t s">precomputed for 10 × T, bf16 → every attention layer</text>
+
+  <!-- connectors from block to detail panel -->
+  <path d="M320,250 L420,20" class="dash"/>
+  <path d="M320,350 L420,720" class="dash"/>
+
+  <!-- ===== Right panel: block detail ===== -->
+  <rect x="420" y="20" width="560" height="700" rx="10" class="panel"/>
+  <text x="700" y="44" class="t h">Block detail (one of 20 layers)</text>
+
+  <!-- residual stream -->
+  <text x="470" y="64" class="t" font-weight="bold">x</text>
+  <path d="M470,72 L470,690" class="res"/>
+  <path d="M470,690 L470,708" class="wire"/>
+  <text x="530" y="706" class="t s">x → next block</text>
+  <text x="452" y="250" class="t s" transform="rotate(-90 452 250)">residual stream (1,280)</text>
+
+  <!-- attention branch -->
+  <path d="M470,98 L538,98" class="wire"/>
+  <rect x="540" y="80" width="400" height="36" rx="6" class="norm"/>
+  <text x="740" y="98" class="t">RMSNorm</text>
+  <path d="M602,116 L602,133" class="wire"/>
+  <path d="M740,116 L740,133" class="wire"/>
+  <path d="M877,116 L877,133" class="wire"/>
+
+  <rect x="540" y="135" width="125" height="40" rx="6" class="lin"/>
+  <text x="602" y="149" class="t">c_q</text>
+  <text x="602" y="165" class="t s">1280 → 10×128</text>
+  <rect x="677" y="135" width="125" height="40" rx="6" class="lin"/>
+  <text x="740" y="149" class="t">c_k</text>
+  <text x="740" y="165" class="t s">1280 → n_kv×128</text>
+  <rect x="815" y="135" width="125" height="40" rx="6" class="lin"/>
+  <text x="877" y="149" class="t">c_v</text>
+  <text x="877" y="165" class="t s">1280 → n_kv×128</text>
+
+  <path d="M602,175 L602,188" class="wire"/>
+  <path d="M740,175 L740,188" class="wire"/>
+  <rect x="540" y="190" width="262" height="36" rx="6" class="emb"/>
+  <text x="671" y="208" class="t">RoPE on q, k (relative position)</text>
+  <path d="M671,226 L671,238" class="wire"/>
+  <rect x="540" y="240" width="262" height="36" rx="6" class="norm"/>
+  <text x="671" y="258" class="t">QK-norm: RMSNorm(q), RMSNorm(k)</text>
+  <path d="M671,276 L671,293" class="wire"/>
+  <path d="M877,175 L877,293" class="wire"/>
+  <text x="890" y="235" class="s">v</text>
+
+  <rect x="540" y="295" width="400" height="50" rx="6" class="attn"/>
+  <text x="740" y="312" class="t">Causal scaled-dot-product attention</text>
+  <text x="740" y="330" class="t s">10 heads · d_head 128 · repeat_kv (MQA/GQA) · KV-cache at inference</text>
+  <path d="M740,345 L740,363" class="wire"/>
+  <rect x="540" y="365" width="400" height="36" rx="6" class="lin"/>
+  <text x="740" y="383" class="t">c_proj 1280 → 1280 (zero-init)</text>
+  <path d="M540,383 L484,383" class="wire"/>
+  <circle cx="470" cy="383" r="12" fill="#fff" stroke="#111" stroke-width="2"/>
+  <text x="470" y="384" class="t" font-weight="bold">+</text>
+
+  <!-- MLP branch -->
+  <path d="M470,448 L538,448" class="wire"/>
+  <rect x="540" y="430" width="400" height="36" rx="6" class="norm"/>
+  <text x="740" y="448" class="t">RMSNorm</text>
+  <path d="M740,466 L740,483" class="wire"/>
+  <rect x="540" y="485" width="400" height="36" rx="6" class="lin"/>
+  <text x="740" y="503" class="t">c_fc 1280 → 5120 (4×, no bias)</text>
+  <path d="M740,521 L740,538" class="wire"/>
+  <rect x="540" y="540" width="400" height="36" rx="6" class="act"/>
+  <text x="740" y="558" class="t">ReLU²  :  max(0, x)²</text>
+  <path d="M740,576 L740,593" class="wire"/>
+  <rect x="540" y="595" width="400" height="36" rx="6" class="lin"/>
+  <text x="740" y="613" class="t">c_proj 5120 → 1280 (zero-init)</text>
+  <path d="M540,613 L484,613" class="wire"/>
+  <circle cx="470" cy="613" r="12" fill="#fff" stroke="#111" stroke-width="2"/>
+  <text x="470" y="614" class="t" font-weight="bold">+</text>
+
+  <text x="760" y="665" class="t s">x = x + Attn(norm(x));  x = x + MLP(norm(x))</text>
+
+  <!-- footer -->
+  <text x="500" y="752" class="t">d20 speedrun: depth 20 · d_model = 64·depth = 1,280 · heads = ⌈1280/128⌉ = 10 · n_kv_head = 10 (1:1) · vocab 65,536 · ctx 2,048</text>
+  <text x="500" y="774" class="t s">≈ 561M params (393M in blocks + 2 × 84M embedding/unembedding) · bf16 autocast · Muon for block matrices, AdamW for wte / lm_head</text>
+</svg>

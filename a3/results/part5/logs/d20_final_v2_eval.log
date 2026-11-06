@@ -1,0 +1,114 @@
+Autodetected device type: cuda
+2026-11-05 22:48:55,056 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 8
+2026-11-05 22:48:55,060 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/base_checkpoints/d20_final_v2 with step 4980
+2026-11-05 22:48:56,742 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 20, 'n_head': 10, 'n_kv_head': 10, 'n_embd': 1280, 'window_pattern': 'SSSL', 'mlp_type': 'relu2', 'rope_frac': 0.5}
+Evaluating model: base_model (step 4980)
+Eval modes: bpb, core, sample
+
+================================================================================
+Model Samples
+================================================================================
+
+Conditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>The capital of France is Paris. It is the largest city in France and the capital of the French Republic
+--------------------------------------------------------------------------------
+<|bos|>The chemical symbol of gold is Au. It is a soft, yellow metal that is malleable and ductile
+--------------------------------------------------------------------------------
+<|bos|>If yesterday was Friday, then tomorrow will be today. If yesterday was yesterday, then tomorrow will be today. If yesterday was
+--------------------------------------------------------------------------------
+<|bos|>The opposite of hot is cold. The opposite of cold is hot. The opposite of hot is cold.
+--------------------------------------------------------------------------------
+<|bos|>The planets of the solar system are: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Ne
+--------------------------------------------------------------------------------
+<|bos|>My favorite color is blue. I love the way it makes me feel. I love the way it
+--------------------------------------------------------------------------------
+<|bos|>If 5*x + 3 = 13, then x is a factor of 13. If 5*x + 3 = 
+
+Unconditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>If the high dollar cap rolls in, there goouts everywhere will be packing themselves for an 8-10 grand rerace.
+Just because the rates are moving doesn't mean fares aren't going up. This riot is real. Traffic heavy. Route traffic heavy. Road rush everywhere. Everyone who thinks rates stay like they are will wake up. Can't go back to long lines in 90 degree weather if I don't.
+Oh, I know, I earn more and read a lot less anyway, but hey, if higher rates are ever going to be something that the ppl in the areas that want their trouble are going
+--------------------------------------------------------------------------------
+<|bos|>Many Life-saving websites out there are according to their places of origin only, frequently circulating misleading information through the Internet. Philippine youth are, therefore, particularly particularly dependent on parents and teachers, who often regard the opinions of a child's friends as unskippable when it comes to selecting the optimal curriculum. The use of a computer so prevalent and useful in today's world at a young age is also somehow depending on their environment and can thus be deceptive or even misinformed in certain cases. Equally so, certain materials can simultaneously be too obscured by the enormous range of information on a typical computer or preferably a gaming PC
+--------------------------------------------------------------------------------
+<|bos|>Your description isn't very accurate. Perhaps you are thinking of a few bullseyes. You may not need them, I don't think. If you dress warmly and don't overheat then you shouldn't be much of a problem. There are three most important areas -is the clothes too cold or too loose (will that be a problem??); they protect your legs, they are heat conserving, and they may be flammable, and, they may cause the rest of your body to overheat (if you get a radiator, can you tell me what make it is, and what it will affect?)
+
+There are no cloths that
+--------------------------------------------------------------------------------
+<|bos|>Model,
+On 15.6.06 21:28 +0000, Jonathan Anderson wrote:
+> [{quoted}](name=Noskart,realm=EUW,application-id=AvgTqm,discussion-id=B0XVtkU,comment-id=0000014,timestamp=2006-15-15T17:05:29.934+0000)
+> What a ridiculous question. To prove this is a non-trivial question, we have explored all
+> known breakable programs
+--------------------------------------------------------------------------------
+<|bos|>Dive into the rich and savory land of Hunza with our Goan Pickle Cornmeal Recipes. Easy and simple-to-follow recipes are paired with detailed explanations to ensure every bite is followed flawlessly.
+
+In Healthy Tip: Enjoy them Raw or some time with plain yogurt and a spoon or sprinkle some tactics directly off the spoon of meat- fillings if desire.
+
+Orchids
+
+There are many Orchids types those are used in a lot of countries around the world, wet or dry and including your coffee bean that makes it very good for both the body. You will invariably find that either moldings allocates as healthy as
+--------------------------------------------------------------------------------
+<|bos|>These species are commonly known as sympatric or inshore finchets. However, their certain features make them appear to differ markedly and impossible to tell apart phylogenetically. Morphological evidence suggests that all three species are in fact actually members of this genus under the monotypic name Nanus (not nanofin). They may all be members of one species or are all members of one species and the individuals being sold as Nanus maculatus are all members of the same species. Also it is suggested that the two further species following the genus Nanus are seriously threatened by capture for the aquarium trade, due to their ins
+--------------------------------------------------------------------------------
+<|bos|>How bonsai trees grow and why they look so realistic
+
+Author
+
+Author‌ Approach (20 minss): Tutorial
+
+Time: 5 Minutes
+
+A 500 word description of the article how bonsai trees grow and why they look so realistic
+
+"Have you ever pondered how bonsai trees create such lifelike shapes and intricate details, or about the aesthetic pleasure they offer to admire?"
+
+In a world where our actions are often far from tranquil, we occasionally find inspiration to embark on a journey of our own, to uncover the art's threads and to re-think our values.
+
+Therefore, we believe in the enlightened exploration of these
+--------------------------------------------------------------------------------
+<|bos|>pointing oval or circular on the remaining downhole string below the zero shot. Gravity is
+linear and no back pressure descends the Earth's surface. This
+small window of unaltered free fall causes a sudden, dramatic fall, vertically, which
+values at nearly the Earth's surface and results in a rapid spin around the zero point.
+If the piece was lighter at the surface, the heavier pieces would move faster than light
+pieces. The 13,266 meter
+length piece (Betelgeuse; Southern Cross) circles both near the zero shot and
+and also above the zero shot. Data collected
+
+================================================================================
+BPB Evaluation
+================================================================================
+train bpb: 0.735893
+val bpb: 0.733960
+
+================================================================================
+CORE Evaluation
+================================================================================
+Evaluating: hellaswag_zeroshot (0-shot, type: multiple_choice)... accuracy: 0.5137 | centered: 0.3517 | time: 21.32s
+Evaluating: jeopardy (10-shot, type: language_modeling)... accuracy: 0.0742 | centered: 0.0742 | time: 4.66s
+Evaluating: bigbench_qa_wikidata (10-shot, type: language_modeling)... accuracy: 0.4296 | centered: 0.4296 | time: 44.18s
+Evaluating: arc_easy (10-shot, type: multiple_choice)... accuracy: 0.6814 | centered: 0.5752 | time: 5.82s
+Evaluating: arc_challenge (10-shot, type: multiple_choice)... accuracy: 0.3951 | centered: 0.1934 | time: 2.75s
+Evaluating: copa (0-shot, type: multiple_choice)... accuracy: 0.6400 | centered: 0.2800 | time: 0.26s
+Evaluating: commonsense_qa (10-shot, type: multiple_choice)... accuracy: 0.2678 | centered: 0.0848 | time: 2.89s
+Evaluating: piqa (10-shot, type: multiple_choice)... accuracy: 0.7301 | centered: 0.4603 | time: 4.48s
+Evaluating: openbook_qa (0-shot, type: multiple_choice)... accuracy: 0.3780 | centered: 0.1707 | time: 1.12s
+Evaluating: lambada_openai (0-shot, type: language_modeling)... accuracy: 0.4079 | centered: 0.4079 | time: 10.69s
+Evaluating: hellaswag (10-shot, type: multiple_choice)... accuracy: 0.5181 | centered: 0.3575 | time: 26.37s
+Evaluating: winograd (0-shot, type: schema)... accuracy: 0.6813 | centered: 0.3626 | time: 0.57s
+Evaluating: winogrande (0-shot, type: schema)... accuracy: 0.5738 | centered: 0.1476 | time: 2.53s
+Evaluating: bigbench_dyck_languages (10-shot, type: language_modeling)... accuracy: 0.0980 | centered: 0.0980 | time: 2.44s
+Evaluating: agi_eval_lsat_ar (3-shot, type: multiple_choice)... accuracy: 0.2348 | centered: 0.0435 | time: 0.59s
+Evaluating: bigbench_cs_algorithms (10-shot, type: language_modeling)... accuracy: 0.4341 | centered: 0.4341 | time: 2.96s
+Evaluating: bigbench_operators (10-shot, type: language_modeling)... accuracy: 0.1857 | centered: 0.1857 | time: 0.47s
+Evaluating: bigbench_repeat_copy_logic (10-shot, type: language_modeling)... accuracy: 0.0000 | centered: 0.0000 | time: 0.08s
+Evaluating: squad (10-shot, type: language_modeling)... accuracy: 0.4439 | centered: 0.4439 | time: 26.66s
+Evaluating: coqa (0-shot, type: language_modeling)... accuracy: 0.3015 | centered: 0.3015 | time: 17.44s
+Evaluating: boolq (10-shot, type: multiple_choice)... accuracy: 0.5015 | centered: -0.3118 | time: 8.54s
+Evaluating: bigbench_language_identification (10-shot, type: multiple_choice)... accuracy: 0.2490 | centered: 0.1738 | time: 39.12s
+
+Results written to: /data/base_eval/base_model_004980.csv
+CORE metric: 0.2393

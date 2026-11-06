@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <style>
+      .io   { fill:#eef2f7; stroke:#5b6b80; stroke-width:1.2; }
+      .emb  { fill:#e3f1e3; stroke:#3f7d3f; stroke-width:1.2; }
+      .lin  { fill:#e2ecfb; stroke:#3a63a8; stroke-width:1.2; }
+      .attn { fill:#fbe4e4; stroke:#a83a3a; stroke-width:1.2; }
+      .act  { fill:#efe3fb; stroke:#6a3aa8; stroke-width:1.2; }
+      .pass { fill:#eeeeee; stroke:#777; stroke-width:1.2; stroke-dasharray:4 3; }
+      .panel{ fill:#fafafa; stroke:#888; stroke-width:1.2; stroke-dasharray:6 4; }
+      .t    { text-anchor:middle; dominant-baseline:middle; fill:#111; }
+      .l    { text-anchor:start; dominant-baseline:middle; fill:#111; }
+      .s    { font-size:11px; fill:#444; }
+      .h    { font-size:14px; font-weight:bold; }
+      .b    { font-weight:bold; }
+      .wire { stroke:#333; stroke-width:1.4; fill:none; marker-end:url(#arr); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="400" fill="#ffffff"/>
+
+  <!-- ===== (a) GeGLU ===== -->
+  <rect x="10" y="10" width="320" height="380" rx="10" class="panel"/>
+  <text x="170" y="34" class="t h">(a) GeGLU feed-forward</text>
+  <text x="90" y="64" class="t b">July: ReLU²</text>
+  <text x="247" y="64" class="t b">Proposed: GeGLU</text>
+
+  <!-- ReLU² column -->
+  <rect x="30" y="82" width="120" height="28" rx="6" class="io"/>
+  <text x="90" y="96" class="t">x  (d)</text>
+  <path d="M90,110 L90,138" class="wire"/>
+  <rect x="30" y="140" width="120" height="36" rx="6" class="lin"/>
+  <text x="90" y="152" class="t">c_fc</text>
+  <text x="90" y="167" class="t s">d → 4d</text>
+  <path d="M90,176 L90,203" class="wire"/>
+  <rect x="30" y="205" width="120" height="28" rx="6" class="act"/>
+  <text x="90" y="219" class="t">ReLU(·)²</text>
+  <path d="M90,233 L90,268" class="wire"/>
+  <rect x="30" y="270" width="120" height="36" rx="6" class="lin"/>
+  <text x="90" y="282" class="t">c_proj</text>
+  <text x="90" y="297" class="t s">4d → d</text>
+
+  <!-- GeGLU column -->
+  <rect x="187" y="82" width="120" height="28" rx="6" class="io"/>
+  <text x="247" y="96" class="t">x  (d)</text>
+  <path d="M220,110 L210,138" class="wire"/>
+  <path d="M274,110 L284,138" class="wire"/>
+  <rect x="176" y="140" width="68" height="36" rx="6" class="lin"/>
+  <text x="210" y="152" class="t">c_gate</text>
+  <text x="210" y="167" class="t s">d → h</text>
+  <rect x="250" y="140" width="68" height="36" rx="6" class="lin"/>
+  <text x="284" y="152" class="t">c_fc</text>
+  <text x="284" y="167" class="t s">d → h</text>
+  <path d="M210,176 L210,203" class="wire"/>
+  <rect x="176" y="205" width="68" height="28" rx="6" class="act"/>
+  <text x="210" y="219" class="t">GELU</text>
+  <path d="M210,233 L238,242" class="wire"/>
+  <path d="M284,176 L284,245 L259,245" class="wire"/>
+  <circle cx="247" cy="245" r="11" fill="#fff" stroke="#111" stroke-width="1.6"/>
+  <text x="247" y="246" class="t b">×</text>
+  <path d="M247,256 L247,268" class="wire"/>
+  <rect x="187" y="270" width="120" height="36" rx="6" class="lin"/>
+  <text x="247" y="282" class="t">c_proj</text>
+  <text x="247" y="297" class="t s">h → d</text>
+
+  <text x="170" y="332" class="t s">h = 8d/3 keeps the parameter count equal:</text>
+  <text x="170" y="349" class="t s">3·d·h = 2·d·4d = 8d²   (d12: d = 768, h = 2,048)</text>
+  <text x="170" y="370" class="t s">Shazeer (2020); ModernBERT (Warner et al., 2025)</text>
+
+  <!-- ===== (b) Partial RoPE ===== -->
+  <rect x="340" y="10" width="320" height="380" rx="10" class="panel"/>
+  <text x="500" y="34" class="t h">(b) Partial RoPE (one 128-dim head)</text>
+
+  <text x="360" y="68" class="l b">July: rotate 100% of q, k dims</text>
+  <rect x="360" y="82" width="280" height="34" rx="4" class="emb"/>
+  <text x="500" y="99" class="t">rotated: 128 dims (64 pairs)</text>
+  <text x="360" y="128" class="l s">0</text>
+  <text x="640" y="128" class="t s">128</text>
+
+  <text x="360" y="160" class="l b">Proposed: rotate 50%</text>
+  <rect x="360" y="174" width="140" height="34" rx="4" class="emb"/>
+  <text x="430" y="191" class="t">rotated: 64</text>
+  <rect x="500" y="174" width="140" height="34" rx="4" class="pass"/>
+  <text x="570" y="191" class="t">pass-through: 64</text>
+  <text x="360" y="220" class="l s">0</text>
+  <text x="500" y="220" class="t s">64</text>
+  <text x="640" y="220" class="t s">128</text>
+
+  <text x="360" y="254" class="l s">• rotated dims: q·k score depends on content and distance</text>
+  <text x="360" y="274" class="l s">• pass-through dims: score depends on content only</text>
+  <text x="360" y="294" class="l s">• rotated pairs still span frequencies 1 → 1/θ</text>
+  <text x="360" y="314" class="l s">• no new parameters, same FLOPs</text>
+  <text x="500" y="370" class="t s">GPT-NeoX rotates 25%; ModernBERT App. D.1 tests 50–100%</text>
+
+  <!-- ===== (c) Local / global theta ===== -->
+  <rect x="670" y="10" width="320" height="380" rx="10" class="panel"/>
+  <text x="830" y="34" class="t h">(c) Separate RoPE θ per layer type</text>
+  <text x="755" y="64" class="t b">July (d12, SSSL)</text>
+  <text x="910" y="64" class="t b">Proposed</text>
+
+  <!-- 12 layers: S S S L repeated; y = 78 + 18*i -->
+  <g font-size="11px">
+    <rect x="700" y="78"  width="110" height="15" rx="3" class="lin"/><text x="755" y="86"  class="t">S · θ = 100k</text>
+    <rect x="700" y="96"  width="110" height="15" rx="3" class="lin"/><text x="755" y="104" class="t">S · θ = 100k</text>
+    <rect x="700" y="114" width="110" height="15" rx="3" class="lin"/><text x="755" y="122" class="t">S · θ = 100k</text>
+    <rect x="700" y="132" width="110" height="15" rx="3" class="attn"/><text x="755" y="140" class="t">L · θ = 100k</text>
+    <rect x="700" y="150" width="110" height="15" rx="3" class="lin"/><text x="755" y="158" class="t">S · θ = 100k</text>
+    <rect x="700" y="168" width="110" height="15" rx="3" class="lin"/><text x="755" y="176" class="t">S · θ = 100k</text>
+    <rect x="700" y="186" width="110" height="15" rx="3" class="lin"/><text x="755" y="194" class="t">S · θ = 100k</text>
+    <rect x="700" y="204" width="110" height="15" rx="3" class="attn"/><text x="755" y="212" class="t">L · θ = 100k</text>
+    <rect x="700" y="222" width="110" height="15" rx="3" class="lin"/><text x="755" y="230" class="t">S · θ = 100k</text>
+    <rect x="700" y="240" width="110" height="15" rx="3" class="lin"/><text x="755" y="248" class="t">S · θ = 100k</text>
+    <rect x="700" y="258" width="110" height="15" rx="3" class="lin"/><text x="755" y="266" class="t">S · θ = 100k</text>
+    <rect x="700" y="276" width="110" height="15" rx="3" class="attn"/><text x="755" y="284" class="t">L · θ = 100k</text>
+
+    <rect x="855" y="78"  width="110" height="15" rx="3" class="act"/><text x="910" y="86"  class="t">S · θ = 10k</text>
+    <rect x="855" y="96"  width="110" height="15" rx="3" class="act"/><text x="910" y="104" class="t">S · θ = 10k</text>
+    <rect x="855" y="114" width="110" height="15" rx="3" class="act"/><text x="910" y="122" class="t">S · θ = 10k</text>
+    <rect x="855" y="132" width="110" height="15" rx="3" class="attn"/><text x="910" y="140" class="t">L · θ_global</text>
+    <rect x="855" y="150" width="110" height="15" rx="3" class="act"/><text x="910" y="158" class="t">S · θ = 10k</text>
+    <rect x="855" y="168" width="110" height="15" rx="3" class="act"/><text x="910" y="176" class="t">S · θ = 10k</text>
+    <rect x="855" y="186" width="110" height="15" rx="3" class="act"/><text x="910" y="194" class="t">S · θ = 10k</text>
+    <rect x="855" y="204" width="110" height="15" rx="3" class="attn"/><text x="910" y="212" class="t">L · θ_global</text>
+    <rect x="855" y="222" width="110" height="15" rx="3" class="act"/><text x="910" y="230" class="t">S · θ = 10k</text>
+    <rect x="855" y="240" width="110" height="15" rx="3" class="act"/><text x="910" y="248" class="t">S · θ = 10k</text>
+    <rect x="855" y="258" width="110" height="15" rx="3" class="act"/><text x="910" y="266" class="t">S · θ = 10k</text>
+    <rect x="855" y="276" width="110" height="15" rx="3" class="attn"/><text x="910" y="284" class="t">L · θ_global</text>
+  </g>
+  <path d="M815,184 L850,184" class="wire"/>
+  <text x="690" y="86" class="t s">0</text>
+  <text x="690" y="284" class="t s">11</text>
+
+  <text x="830" y="314" class="t s">S: sliding window of T/4 tokens (512 at T = 2,048)</text>
+  <text x="830" y="331" class="t s">L: full context; θ_global = 100k, raised for extension</text>
+  <text x="830" y="352" class="t s">ModernBERT: 10k local / 160k global</text>
+  <text x="830" y="370" class="t s">Gemma 3: 10k local / 1M global</text>
+</svg>
