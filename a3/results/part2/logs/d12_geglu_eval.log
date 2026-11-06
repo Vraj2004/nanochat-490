@@ -1,0 +1,117 @@
+Autodetected device type: cuda
+2026-11-02 04:37:26,588 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 8
+2026-11-02 04:37:26,590 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/base_checkpoints/d12_geglu with step 2520
+2026-11-02 04:37:27,112 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 12, 'n_head': 6, 'n_kv_head': 6, 'n_embd': 768, 'window_pattern': 'SSSL', 'mlp_type': 'geglu'}
+Evaluating model: base_model (step 2520)
+Eval modes: bpb, core, sample
+
+================================================================================
+Model Samples
+================================================================================
+
+Conditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>The capital of France is Paris, and the capital of the French Republic is Lyon. The capital of
+--------------------------------------------------------------------------------
+<|bos|>The chemical symbol of gold is Au. It is a soft, malleable, and ductile metal. It
+--------------------------------------------------------------------------------
+<|bos|>If yesterday was Friday, then tomorrow will be Friday. If yesterday was Friday, then tomorrow will be Friday. If yesterday was
+--------------------------------------------------------------------------------
+<|bos|>The opposite of hot is cold. The opposite of hot is cold. The opposite of hot is cold.
+--------------------------------------------------------------------------------
+<|bos|>The planets of the solar system are: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Ne
+--------------------------------------------------------------------------------
+<|bos|>My favorite color is blue. I love the blue of the sky, the blue of the sea,
+--------------------------------------------------------------------------------
+<|bos|>If 5*x + 3 = 13, then x is the sum of the squares of the two numbers. If 5*x +
+
+Unconditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>If the high dollar dog rolls in, there goouts everywhere that discount the life of an 8-10 grand dog and keep the owners money. The dogs themselves run years down the pipeline and foam up in the rift spot. If a heavy pack of cowdogs snatched up the dogs and provided a warm but stale roommate, the ration hit a void.
+The dog raiser walks through the National Park to see what the competition has to offer, what the dog's vet going to be looking for, out of sight with a 10-legger and a deep panting bunch of popcorn. It's not fun to
+--------------------------------------------------------------------------------
+<|bos|>Many Life-saving, Healthy Benefits of Using Turf Turf Treatments
+
+It is estimated that almost 1 million people around the world are living with or suffering from high cholesterol levels and risk of high blood pressure and heart disease. These diseases also range in severity from mild conditions like heart attack to severe conditions such as chronic pain and breathing difficulties.
+
+With that in mind, the issues associated with high cholesterol and its link to effective treatment options such as feng shui or homeopathic remedies are a very rising concern. This whole system of homeopathic therapies has been obscured by lab tests for the detection of a certain amount of cholesterol in the blood
+--------------------------------------------------------------------------------
+<|bos|>Your description isn't very accurate. Perhaps not surprisingly, look at how the "neutral" elements of "the most obvious thing that we see is a bit weirder than the white stuff ...", ... ," ... should be. Roughly most objects of colour don't do that but sometimes nothing should hold up that much. We take the same long sample about fire and humidity and the result is that the fire of course is, on occasion, the most obvious item in the air.
+That means that the relative gain of the "classics" of colour, and underscores the principle that the meaty and fishy is more
+--------------------------------------------------------------------------------
+<|bos|>Model,
+On the way off I can't get my legs around it. Three quarters down the hall I just get up sick, and also torn on why I don't want to go to camp in front of the stars. Now, it seems pretty harsh to me, to be able to become a star, though that's only one of the thousandth or 30th most dominant/most capable stars I have. I'd slightly believe the difference between 3/6 of a star 3 times being human, and 5/6 locations in the ring alone because my mom can make room for me.
+.
+Actually it's only
+--------------------------------------------------------------------------------
+<|bos|>Dive for Success: Reading Online or Online?
+
+If you've ever wanted to delve into the world of multiple online archiving companies like Amazon Associates or When Time is Better, then you've followed the correct instructions. Healthy kick-starting is an end some time. But when it comes to reading comprehensive reviews about your needs, your results, and products you choose, you must be taught the basics.
+
+The Financial Literacy Council of America and the Online Online Mentoring Council (OOC) Consumer and Education Services Association (COMEA) are two members of the Consumer Services Consortium (CSC). They're most often referred to as foundations.
+
+
+--------------------------------------------------------------------------------
+<|bos|>These species are commonly known as "Blue Wild Rice" and "Blue Oasis"
+by their certain colours they emitted from their beaks.
+The "Blue Oasis" is a small basin drainage pond at the Black River drainage
+system in Little Colorado, Colorado.
+Once an isolated area, the pond was subjected to a civil engineering
+construction program in Wolf Canyon in 1827 to replace it. After
+a diversion, the drainage basin was restored to its original condition and
+its original purpose for catching water was achieved.
+The primary source of storm water in the basin is a stream from the
+Atlantic Ocean's coastline. In the
+--------------------------------------------------------------------------------
+<|bos|>How bonsai trees grow yo-yo?
+
+Situation
+
+This year our natuensis tree bore unknown care, and spent 7 more days in my monitored environment lined with mistaking Paci and Malagua as possible eight measures of transition from deciduous to evergreen, from still daily flowers to mature what yakmeong elder ninja consists of! Suddenly Holly got leaves and flour was falling to the ground. It has buds! Mamae, struggled to fly because she had lost her front of the trop's, yet is still outside in the grass, five of her underges have now vibes these
+--------------------------------------------------------------------------------
+<|bos|>pointing. Most of us grew up with the
+ancient tale that a stove is a small appliance no longer practical. Sometimes
+gaseliadores had
+a window as the main vented vent to
+suddenly reach the hot house. In the past, schoolchildren assumed these plans were
+and were not true. Some kids called the prosaic piece "god's nightmare," referring
+to what happened when their teachers
+day they tried it on a teenage boy. A year and a half later, Mr. Greenango
+was figuring out where to attach the stove
+and finally, how to use it.
+B
+
+================================================================================
+BPB Evaluation
+================================================================================
+train bpb: 0.845817
+val bpb: 0.844381
+
+================================================================================
+CORE Evaluation
+================================================================================
+Evaluating: hellaswag_zeroshot (0-shot, type: multiple_choice)... accuracy: 0.3610 | centered: 0.1480 | time: 13.60s
+Evaluating: jeopardy (10-shot, type: language_modeling)... accuracy: 0.0076 | centered: 0.0076 | time: 3.07s
+Evaluating: bigbench_qa_wikidata (10-shot, type: language_modeling)... accuracy: 0.2793 | centered: 0.2793 | time: 27.60s
+Evaluating: arc_easy (10-shot, type: multiple_choice)... accuracy: 0.5539 | centered: 0.4052 | time: 3.97s
+Evaluating: arc_challenge (10-shot, type: multiple_choice)... accuracy: 0.2858 | centered: 0.0478 | time: 1.87s
+Evaluating: copa (0-shot, type: multiple_choice)... accuracy: 0.6000 | centered: 0.2000 | time: 0.16s
+Evaluating: commonsense_qa (10-shot, type: multiple_choice)... accuracy: 0.3464 | centered: 0.1830 | time: 1.94s
+Evaluating: piqa (10-shot, type: multiple_choice)... accuracy: 0.6736 | centered: 0.3471 | time: 2.98s
+Evaluating: openbook_qa (0-shot, type: multiple_choice)... accuracy: 0.3340 | centered: 0.1120 | time: 0.72s
+Evaluating: lambada_openai (0-shot, type: language_modeling)... accuracy: 0.3041 | centered: 0.3041 | time: 6.73s
+Evaluating: hellaswag (10-shot, type: multiple_choice)... accuracy: 0.3559 | centered: 0.1412 | time: 17.77s
+Evaluating: winograd (0-shot, type: schema)... accuracy: 0.6154 | centered: 0.2308 | time: 0.36s
+Evaluating: winogrande (0-shot, type: schema)... accuracy: 0.5162 | centered: 0.0324 | time: 1.56s
+Evaluating: bigbench_dyck_languages (10-shot, type: language_modeling)... accuracy: 0.0620 | centered: 0.0620 | time: 1.62s
+Evaluating: agi_eval_lsat_ar (3-shot, type: multiple_choice)... accuracy: 0.2348 | centered: 0.0435 | time: 0.39s
+Evaluating: bigbench_cs_algorithms (10-shot, type: language_modeling)... accuracy: 0.4015 | centered: 0.4015 | time: 1.93s
+Evaluating: bigbench_operators (10-shot, type: language_modeling)... accuracy: 0.1143 | centered: 0.1143 | time: 0.32s
+Evaluating: bigbench_repeat_copy_logic (10-shot, type: language_modeling)... accuracy: 0.0312 | centered: 0.0312 | time: 0.05s
+Evaluating: squad (10-shot, type: language_modeling)... accuracy: 0.1728 | centered: 0.1728 | time: 18.11s
+Evaluating: coqa (0-shot, type: language_modeling)... accuracy: 0.1724 | centered: 0.1724 | time: 11.33s
+Evaluating: boolq (10-shot, type: multiple_choice)... accuracy: 0.5697 | centered: -0.1323 | time: 5.84s
+Evaluating: bigbench_language_identification (10-shot, type: multiple_choice)... accuracy: 0.2557 | centered: 0.1812 | time: 21.78s
+
+Results written to: /data/base_eval/base_model_002520.csv
+CORE metric: 0.1584
