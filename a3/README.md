@@ -2,6 +2,8 @@
 
 `a3.tex` is the report (`a3.pdf` once built). This folder also has the scripts, results and logs behind every number in it.
 
+The training code is in our nanochat fork, https://github.com/Vraj2004/nanochat-490, on `master`. This folder is also kept there as `a3/`, and the script paths below are relative to that repository's root.
+
 ## Building the report
 
 ```
