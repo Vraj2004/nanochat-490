@@ -120,6 +120,14 @@ def train_remote(run_name: str, depth: int, extra_args: str, run_eval: bool):
         volume.commit()
 
 
+@app.function(volumes={VOLUME_DIR: volume}, gpu="H100:1", timeout=30 * 60)
+def emergent_remote(pico_tag: str, nano_tag: str):
+    out_dir = os.path.join(VOLUME_DIR, "part5_emergent")
+    _run(f"python -m scripts.emergent_eval --pico-tag={shlex.quote(pico_tag)} --nano-tag={shlex.quote(nano_tag)} "
+         f"--out-dir={out_dir} 2>&1 | tee {out_dir}.log")
+    volume.commit()
+
+
 @app.function(gpu="H100:1", timeout=10 * 60)
 def check_fa3():
     """Try to load Flash Attention 3 and print the real error if it fails."""
@@ -145,3 +153,16 @@ def check_fa3():
 def train(run_name: str = "d12_baseline", depth: int = 12, extra_args: str = "", eval: bool = True):
     print(f"Launching {run_name} (depth={depth}) on {GPU} with extra args: {extra_args!r}")
     train_remote.remote(run_name, depth, extra_args, eval)
+
+
+@app.local_entrypoint()
+def emergent(pico_tag: str = "d12_rope50", nano_tag: str = "d20_final_v2"):
+    """Part 5: compare picochat and nanochat completions on simple prompts (1 GPU, a few minutes)."""
+    emergent_remote.remote(pico_tag, nano_tag)
+
+
+@app.local_entrypoint()
+def launch(run_name: str, depth: int = 12, extra_args: str = "", eval: bool = True):
+    """Fire-and-forget: start training and return immediately. Use with `modal run --detach`."""
+    call = train_remote.spawn(run_name, depth, extra_args, eval)
+    print(f"Spawned {run_name} (depth={depth}) on {GPU} with extra args: {extra_args!r}; call id {call.object_id}")
