@@ -1,0 +1,99 @@
+Autodetected device type: cuda
+2026-11-04 13:18:43,352 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 8
+2026-11-04 13:18:43,353 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/base_checkpoints/d12_ctx512 with step 2520
+2026-11-04 13:18:43,906 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 12, 'n_head': 6, 'n_kv_head': 6, 'n_embd': 768, 'window_pattern': 'SSSL'}
+Evaluating model: base_model (step 2520)
+Eval modes: bpb, core, sample
+
+================================================================================
+Model Samples
+================================================================================
+
+Conditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>The capital of France is the capital of the French Empire. It is the capital of the French Empire,
+--------------------------------------------------------------------------------
+<|bos|>The chemical symbol of gold is Au. It is a soft, silvery metal that is found in the Earth's
+--------------------------------------------------------------------------------
+<|bos|>If yesterday was Friday, then tomorrow will be Friday. I'm not sure if it's a coincidence, but I'm sure
+--------------------------------------------------------------------------------
+<|bos|>The opposite of hot is cold. Cold is a state of being cold. Cold is a state of being
+--------------------------------------------------------------------------------
+<|bos|>The planets of the solar system are: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Ne
+--------------------------------------------------------------------------------
+<|bos|>My favorite color is red. I love it. I love it. I love it. I love
+--------------------------------------------------------------------------------
+<|bos|>If 5*x + 3 = 13, then x is the number of 5*x + 3*x + 13.
+
+Unconditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>If the high dollar dog market is going to go too far in ensuring that retailers maintain an appealing reputation, what grandma would keep her cool?
+
+Invariably animal advocates would have no reaction. But what if the rioting dog market hadn't gone too far before?
+
+Much more often than not, the shopping mall like a waterfall will go too far and exorcise long-lasting celebrity patronage.
+
+A box of wood, a throwback to the Twilight Zone, and even a small bag of teddy bear banners with "Six Homestead's" and "Button Bears" turned into a record-breaking trouble for major
+--------------------------------------------------------------------------------
+<|bos|>Many businesses recognize the benefits of polyethylene, and it's useful for many specific applications, including net bags, coolers, and staging. However, they may not know the proper way to use polyethylene bags, and the proper application process can be confusing.
+How To Apply Polyethylene Bag
+To start with, you'll want to weigh the advantages and disadvantages of using polyethylene bags, and then determine the appropriate thickness of the application. Begin with Light Skin for this apply depends on the bag. The flexible bags can have different holes depending on the need.
+One of the main advantages of using polyethylene bags is that it isn't as rigid or flexible as
+--------------------------------------------------------------------------------
+<|bos|>Your description isn't very accurate. Perhaps you have a look at the color distribution of both sides of the illustration, but I don't think they are distinctly different. If I ever get a chance to go to a standard drill, should I use black and white or vice versa? OK, I don't want to hold myself firmly in the dealer's hands. I probably will fire all to himself by holding my head in thought of that. I suppose I will often then go back to my drill and see if my own reaction is satisfactory. But I need to know just how dressy my jaws sometimes feel; and I need someone who will
+--------------------------------------------------------------------------------
+<|bos|>Model,
+VLoc, FOXFactory, GMCView, Three Die Square
+The Multiglaucosis Tool (MG) models a column of real numbers on the exponential curve, creating the algorithmic model of a fixed part. It uses a simple script to convert a real number into a ciproject of multiglaucia values, each most likely to perturb an originating undiluted stem slightly or widen slightly. The MG is optimized to cover arterial resupply, provides an artery is a locations in the ring near the vascular aorta, and that can emergency.
+The MG has
+--------------------------------------------------------------------------------
+<|bos|>Dive for Success: Reading B.C.'s Scientific National Sentences
+These are still images from one of the archivers who do a science-based story when they are working on an exhibition beginning May 3. Healthy Williams said, "There are some great ideas. But not the same or comprehensive one." Reading a colorful list of the sermons, or pictures of scientific publications, makes no mention of the scientific discoveries or the essence of the scientific enterprise that is essential to modern understanding.
+"People just go out and research 'The Big Bang theory' when they're in high school," said Discovery College's Beth Leaf as she took
+--------------------------------------------------------------------------------
+<|bos|>These pages cover exercise. Adapted from Wild Rice by Tony Alexander, Adapted from "Where Rice Lives," Mini-Botty: Physical and Mental Development, 99th Anniversary Edition by Jonathan A. White and Louise Roland. Choose any of your favourite wild rice recipes! More An Outdoor Activity;... Reading Wild Rice. Activity: Wolf Rex: Rose Road Busby Cat Activity Activity: Google Friend My Pick Up Kit Activity: Wild Rice Mice Activity: Third Day Pre-Work Out! Activity:
+1. Once upon a time, the gray termite was seriously threatened by militarily, financially, and commercially. Trans
+--------------------------------------------------------------------------------
+<|bos|>How bonsai might be a sacred way of healing
+
+Did you know that God used naturals as a way of curing diseases and healing men. This can be monitored with bonsai trees, since Pendleton and Saraswati. The measures include protecting the trees from rain, preventing soil erosion and explained how what is known as 'plastic ninja's cup!' also called an "thupa" (dead tree) are also made! Mafia, which represent life cycles and our inner thoughts, is the ''securection' where you must take care of the rest required in life. The plants used by
+--------------------------------------------------------------------------------
+<|bos|>pointing. Most of these are coming down the stick to coolants in a stove. Also, you could run an air conditioner in a dog's room next
+to the stove, for obvious reasons. Either a lot of these things, people can't help but wonder. Does the electric company fly and stumble through the garbage around the neighborhood? Shame on a company that is leading the fight....
+No, they're actually doing it in a strange country. Those car bulbs had a bit of power capacity (Betelax noted that the project therefore had nothing to do with devising
+and designing a new supercapacitor.)
+
+================================================================================
+BPB Evaluation
+================================================================================
+train bpb: 0.847563
+val bpb: 0.846204
+
+================================================================================
+CORE Evaluation
+================================================================================
+Evaluating: hellaswag_zeroshot (0-shot, type: multiple_choice)... accuracy: 0.3654 | centered: 0.1538 | time: 13.57s
+Evaluating: jeopardy (10-shot, type: language_modeling)... accuracy: 0.0080 | centered: 0.0080 | time: 3.04s
+Evaluating: bigbench_qa_wikidata (10-shot, type: language_modeling)... accuracy: 0.2650 | centered: 0.2650 | time: 27.42s
+Evaluating: arc_easy (10-shot, type: multiple_choice)... accuracy: 0.5631 | centered: 0.4175 | time: 4.03s
+Evaluating: arc_challenge (10-shot, type: multiple_choice)... accuracy: 0.2816 | centered: 0.0421 | time: 1.88s
+Evaluating: copa (0-shot, type: multiple_choice)... accuracy: 0.6100 | centered: 0.2200 | time: 0.18s
+Evaluating: commonsense_qa (10-shot, type: multiple_choice)... accuracy: 0.2744 | centered: 0.0930 | time: 1.94s
+Evaluating: piqa (10-shot, type: multiple_choice)... accuracy: 0.6801 | centered: 0.3602 | time: 3.05s
+Evaluating: openbook_qa (0-shot, type: multiple_choice)... accuracy: 0.3300 | centered: 0.1067 | time: 0.71s
+Evaluating: lambada_openai (0-shot, type: language_modeling)... accuracy: 0.2985 | centered: 0.2985 | time: 6.75s
+Evaluating: hellaswag (10-shot, type: multiple_choice)... accuracy: 0.3607 | centered: 0.1476 | time: 17.90s
+Evaluating: winograd (0-shot, type: schema)... accuracy: 0.5861 | centered: 0.1722 | time: 0.37s
+Evaluating: winogrande (0-shot, type: schema)... accuracy: 0.5272 | centered: 0.0545 | time: 1.56s
+Evaluating: bigbench_dyck_languages (10-shot, type: language_modeling)... accuracy: 0.0350 | centered: 0.0350 | time: 1.66s
+Evaluating: agi_eval_lsat_ar (3-shot, type: multiple_choice)... accuracy: 0.2478 | centered: 0.0598 | time: 0.39s
+Evaluating: bigbench_cs_algorithms (10-shot, type: language_modeling)... accuracy: 0.4038 | centered: 0.4038 | time: 1.98s
+Evaluating: bigbench_operators (10-shot, type: language_modeling)... accuracy: 0.1000 | centered: 0.1000 | time: 0.32s
+Evaluating: bigbench_repeat_copy_logic (10-shot, type: language_modeling)... accuracy: 0.0000 | centered: 0.0000 | time: 0.05s
+Evaluating: squad (10-shot, type: language_modeling)... accuracy: 0.1314 | centered: 0.1314 | time: 18.25s
+Evaluating: coqa (0-shot, type: language_modeling)... accuracy: 0.1860 | centered: 0.1860 | time: 11.38s
+Evaluating: boolq (10-shot, type: multiple_choice)... accuracy: 0.5749 | centered: -0.1186 | time: 5.95s
+Evaluating: bigbench_language_identification (10-shot, type: multiple_choice)... accuracy: 0.2523 | centered: 0.1774 | time: 21.65s
+
+Results written to: /data/base_eval/base_model_002520.csv
+CORE metric: 0.1506

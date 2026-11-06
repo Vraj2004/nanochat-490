@@ -1,0 +1,11 @@
+docs 86,016  tokens 54,030,672  median 527  mean 628
+p25: 242
+p50: 527
+p75: 702
+p90: 943
+p95: 1482
+T=128: docs fit 10.4%  tokens in docs that fit 1.4%  tokens within first T of their doc 19.6%
+T=256: docs fit 26.6%  tokens in docs that fit 6.3%  tokens within first T of their doc 36.2%
+T=512: docs fit 48.9%  tokens in docs that fit 19.7%  tokens within first T of their doc 61.3%
+T=1024: docs fit 91.1%  tokens in docs that fit 65.9%  tokens within first T of their doc 80.3%
+T=2048: docs fit 96.9%  tokens in docs that fit 78.7%  tokens within first T of their doc 88.7%
