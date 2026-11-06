@@ -52,7 +52,7 @@ The original nanochat \cite{nanochat} (commit \code{3a5e0bc}) is a decoder-only,
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.9\textwidth]{nanochat_oct_architecture.pdf}
+  \includegraphics[width=\textwidth]{nanochat_oct_architecture.pdf}
   \caption{The original nanochat architecture (October 13, 2025) at depth 20. Left: the full model. Right: one of the 20 pre-norm Transformer blocks.}
   \label{fig:oct-arch}
 \end{figure}
@@ -112,7 +112,7 @@ ModernBERT \cite{modernbert} updated BERT \cite{bert} with components from recen
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.85\textwidth]{proposed_changes.pdf}
+  \includegraphics[width=\textwidth]{proposed_changes.pdf}
   \caption{The three proposed changes: (a) GeGLU MLP, (b) partial RoPE, (c) separate RoPE $\theta$ for sliding-window (S) and full-context (L) layers.}
   \label{fig:changes}
 \end{figure}
@@ -210,9 +210,9 @@ MFU (\%) & 41.6 & 39.9 & 39.4 \\
 
 \textbf{GeGLU.} GeGLU has a slightly worse validation BPB than the baseline at all 11 evaluations after step 0, with a gap between 0.0016 and 0.0036 that had not closed by the end of training. Its CORE score is also lower, though within the task-level noise above. These evaluations come from one training run and are correlated, so the consistent sign is not 11 independent results. On the same GPU model as the baseline, GeGLU ran about 4\% slower in both throughput and training time. Its parameter count and estimated FLOPs match the baseline, so this slowdown is not captured by the FLOP estimate. We do not see the gain reported for gated MLPs in the literature \cite{glu}, but this run cannot rule one out: it is short and small, and it has only one seed.
 
-\textbf{Partial RoPE (50\%).} We cannot distinguish partial RoPE from the baseline. It trails early (a BPB gap of $+0.0052$ at step 250), catches up by about step 1500, and finishes $0.00031$ ahead. It also led on CORE at step 2000 ($+0.0019$) but trailed at step 2520 ($-0.0029$), and that change of sign suggests the gap is mostly noise. ModernBERT reported a slight gain at 50--75\% \cite{modernbert}, and we neither confirm nor contradict that here. We also cannot read its throughput as a cost of the change: this run used H100s while the baseline used H200s, and the change rotates fewer dimensions, so it should not add work.
+\textbf{Partial RoPE (50\%).} We cannot distinguish partial RoPE from the baseline. It trails early (a BPB gap of $+0.0052$ at step 250), catches up by about step 1500, and finishes $0.00031$ ahead. It also led on CORE at step 2000 ($+0.0019$) but trailed at step 2520 ($-0.0029$), and that change of sign suggests the gap is mostly noise. ModernBERT reported a slight gain at 50--75\% \cite{modernbert}, and we neither confirm nor contradict that here. This run used H100s while the baseline used H200s, so its throughput in Table~\ref{tab:part2-results} is not comparable. The seed 1337 rerun described below ran on H200s like the baseline, and by the medians of the two training logs it processed 4.39M tokens per second at 42.1\% MFU, against 4.30M and 41.3\% for the baseline (the log medians differ slightly from the W\&B medians in the table). Partial RoPE therefore adds no measurable cost, as expected for a change that rotates fewer dimensions.
 
-\textbf{Seed noise and limitations.} As a first measure of seed noise, we reran partial RoPE with seed 1337 (\code{d12\_rope50\_seed1337}). It finished with a validation BPB of 0.84582 and a CORE score of 0.1574, against 0.84505 and 0.1705 for seed 42, so the two seeds differ by 0.00077 BPB and 0.0131 CORE. Both partial RoPE gaps in Table~\ref{tab:part2-results} are smaller than this difference, and the seed 1337 run is worse than the baseline on both metrics, which supports treating partial RoPE as indistinguishable from the baseline. GeGLU's CORE gap is also smaller than the seed difference, but its validation gap is about 2.8 times larger, so the evidence that GeGLU is slightly worse on validation loss is stronger than the evidence on CORE. This estimate is rough: it is one extra run of one model, the baseline and GeGLU have only one seed each, and seed 1337 ran on H200s while seed 42 ran on H100s. The mixed hardware should not affect the loss curves much, but it does limit the throughput comparison to baseline versus GeGLU.
+\textbf{Seed noise and limitations.} As a first measure of seed noise, we reran partial RoPE with seed 1337 (\code{d12\_rope50\_seed1337}). It finished with a validation BPB of 0.84582 and a CORE score of 0.1574, against 0.84505 and 0.1705 for seed 42, so the two seeds differ by 0.00077 BPB and 0.0131 CORE. Both partial RoPE gaps in Table~\ref{tab:part2-results} are smaller than this difference, and the seed 1337 run is worse than the baseline on both metrics, which supports treating partial RoPE as indistinguishable from the baseline. GeGLU's CORE gap is also smaller than the seed difference, but its validation gap is about 2.8 times larger, so the evidence that GeGLU is slightly worse on validation loss is stronger than the evidence on CORE. This estimate is rough: it is one extra run of one model, the baseline and GeGLU have only one seed each, and seed 1337 ran on H200s while seed 42 ran on H100s. The mixed hardware should not affect the loss curves much, and for throughput we compare partial RoPE with the baseline through the seed 1337 run, which used the same GPUs.
 
 \begin{figure}[H]
 \centering
@@ -237,7 +237,7 @@ We re-ran the GeGLU picochat from Part 2 (d12, 2,520 steps, $1.0 \times 10^{18}$
   \item \textbf{A100 80GB} (Ampere): the previous generation, with a third of the H100's peak compute at 63\% of its price.
   \item \textbf{L40S} (Ada): the cheapest per hour, with slightly more peak compute than the A100 but GDDR6 memory instead of HBM, at less than half the A100's bandwidth.
 \end{itemize}
-Each run used a single GPU, so the comparison measures the chips rather than communication between GPUs; with one GPU, nanochat reaches the same 524K-token batch with 8 gradient accumulation steps. All three runs used FlashAttention-3. For reference we also include the 8-GPU H200 GeGLU run from Part 2. Training cost is training time multiplied by Modal's list price, so it leaves out container startup, compilation and evaluation.
+Each run used a single GPU, so the comparison measures the chips rather than communication between GPUs; with one GPU, nanochat reaches the same 524K-token batch with 8 gradient accumulation steps. All three runs used FlashAttention-3: nanochat loads the community FA3 kernel build (\code{kernels-community/}\allowbreak\code{flash-attn3}) on Ampere and Ada GPUs and a separate build on Hopper, and the logs confirm it loaded on all three. For reference we also include the 8-GPU H200 GeGLU run from Part 2. Training cost is training time multiplied by Modal's list price, so it leaves out container startup, compilation and evaluation.
 
 \subsection*{Results}
 
@@ -379,7 +379,7 @@ MFU & 40.5\% & 42.0\% \\
 
 \textbf{Extending does not hurt short-context ability.} CORE rises from 0.141 to 0.151. Checkpoint 2 trained on 25\% more tokens, so we do not attribute the CORE gain to the longer context. The passkey gap cannot come from this extra training, though: the two checkpoints are identical at distances up to 384 and differ only from 512 onward. The two bpb values are not comparable, because checkpoint 2 is measured with 4$\times$ more context.
 
-\textbf{Compared with training at 2,048 throughout.} The Part 2 baseline is the same d12 trained for the same 2,520 steps at 2,048 the whole time, so it is the control for this recipe. With the evals both runs logged during training (validation BPB, and CORE on 500 examples per task, so these CORE values differ from Table~\ref{tab:ckpts}), checkpoint 2 finishes 0.0039 BPB worse (0.8492 vs 0.8454) and 0.012 CORE lower (0.1615 vs 0.1734). The CORE gap is within the 0.013 difference between two seeds in Part 2, but the BPB gap is five times their 0.0008 difference. At d12 the recipe therefore costs a little quality for a 7\% higher throughput during phase 1, which is why the final model in Part 5 does not use it.
+\textbf{Compared with training at 2,048 throughout.} The Part 2 baseline is the same d12 trained for the same 2,520 steps at 2,048 the whole time, so it is the control for this recipe. With the evals both runs logged during training (validation BPB, and CORE on 500 examples per task, so these CORE values differ from Table~\ref{tab:ckpts}), checkpoint 2 finishes 0.0039 BPB worse (0.8492 vs 0.8454) and 0.012 CORE lower (0.1615 vs 0.1734). These BPB values come from the evaluation run during training and differ from the 0.846 in Table~\ref{tab:ckpts}, which comes from the separate end-of-run evaluation; under that evaluation the baseline scores 0.8423 and checkpoint 2 0.8462, the same 0.004 gap. The CORE gap is within the 0.013 difference between two seeds in Part 2, but the BPB gap is five times their 0.0008 difference. At d12 the recipe therefore costs a little quality for a 7\% higher throughput during phase 1, which is why the final model in Part 5 does not use it.
 
 \subsection*{Cost}
 
@@ -436,7 +436,7 @@ Table~\ref{tab:final-config} lists our final nanochat's data, architecture and h
 
 \textbf{Data} &
 ClimbMix with the same 32,768-token tokenizer as the picochat; 12 tokens per parameter (about 5.2B tokens); 2,048-token context throughout &
-Same data and tokenizer as the picochat, so the two models compare directly. 12 tokens per parameter is the compute-optimal ratio nanochat measured for its own architecture, and our picochat used the same ratio. We read ``the full pre-training dataset'' as this full compute-optimal budget, since all 400B tokens would take about 77 times the compute. In Part 4, training at 512 tokens first lowered CORE (0.162 vs 0.173) for only about a 7\% speedup. \\
+Same data and tokenizer as the picochat, so the two models compare directly. 12 tokens per parameter is the compute-optimal ratio nanochat measured for its own architecture, and our picochat used the same ratio. We read ``the full pre-training dataset'' as this full compute-optimal budget, since all 400B tokens would take about 77 times the compute. In Part 4, training at 512 tokens first left validation BPB 0.004 higher (0.849 vs 0.845), about five times the seed-to-seed difference, for only about a 7\% speedup. \\
 \midrule
 
 \textbf{Architecture} &
@@ -455,7 +455,7 @@ A 20-step smoke test of d20 on 8 H200s peaked at about 72 GiB per GPU (d12 used 
 
 \subsection*{Scaling Law: Predicted vs Actual}
 
-To predict the nanochat's loss from cheap runs, we trained three more picochats (d8, d10 and d14) with the final model's recipe: partial RoPE, 12 tokens per scaling parameter, ClimbMix and the same tokenizer. With the d12 partial RoPE run from Part 2, they cover a 15-fold range of compute (Table~\ref{tab:part5-points}). The eval dataset is ClimbMix's held-out validation shard, and every run reports its BPB on the same 42M validation tokens at the end of training. Following Kaplan et al.\ \cite{kaplan} and Hoffmann et al.\ \cite{chinchilla}, we model the loss as a power law in training compute, $\text{BPB} = a\,C^{-b}$, a straight line in log-log space, and fit it by least squares to the four picochats. Some picochat runs finished after the d20, so we fitted the law afterwards, but the d20 itself is not part of the fit.
+To predict the nanochat's loss from cheap runs, we trained three more picochats (d8, d10 and d14) with the final model's recipe: partial RoPE, 12 tokens per scaling parameter, ClimbMix and the same tokenizer. With the d12 partial RoPE run from Part 2, they cover a 15-fold range of compute (Table~\ref{tab:part5-points}). The eval dataset is ClimbMix's held-out validation shard, and every run reports its BPB on the same 42M validation tokens at the end of training. Following Kaplan et al.\ \cite{kaplan} and Hoffmann et al.\ \cite{chinchilla}, we model the loss as a power law in training compute, $\text{BPB} = a\,C^{-b}$, a straight line in log-log space, and fit it by least squares to the four picochats. The d20 is held out of the fit, so its loss is an out-of-sample prediction from the picochats alone. Some picochat runs finished after the d20, so we computed the fit after the d20 result was in.
 
 \begin{table}[H]
 \centering
@@ -523,7 +523,7 @@ Prompts correct (of 99) & -- & 49 & -- & 72 \\
 
 \textbf{Partial RoPE.} We kept partial RoPE because it matched the baseline at d12 in Part 2. To measure it at d20, we also trained a d20 baseline with full RoPE and otherwise identical settings. Partial RoPE finished slightly ahead, by 0.0004 BPB (0.7367 vs 0.7371) and 0.007 CORE (0.242 vs 0.235). Its training curve repeated the d12 pattern from Part 2: it trailed early, by 0.006 BPB at step 250, caught up by step 500, and was ahead at 15 of its 20 evaluations, with every gap after step 500 under 0.001 in either direction. To judge gaps this small, we retrained the d12 partial RoPE picochat with a second seed (1337 instead of 42), which changes only the weight initialization. The two seeds differed by 0.0008 BPB and 0.013 CORE, more than either d20 gap. One pair of seeds at d12 is only a rough estimate of the noise, but by that estimate partial RoPE is still indistinguishable from the baseline at d20, as it was at d12.
 
-\textbf{Excluded changes.} GeGLU, slightly worse at d12, and Part 4's short-context recipe, which lowered CORE, are not in the final model. The nanochat's gains therefore come from scale on the July architecture with partial RoPE.
+\textbf{Excluded changes.} GeGLU, slightly worse at d12, and Part 4's short-context recipe, which raised validation loss, are not in the final model. The nanochat's gains therefore come from scale on the July architecture with partial RoPE.
 
 \subsection*{Emergent Abilities}
 
