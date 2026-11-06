@@ -39,5 +39,39 @@
   ],
   "pico_only": [
     "Martin Luther King Jr. is famous for his speech"
-  ]
+  ],
+  "reviewed": {
+    "pico_correct": 49,
+    "nano_correct": 72,
+    "nano_only": [
+      "The capital of Japan is",
+      "The capital of Canada is",
+      "The capital of Italy is",
+      "The freezing point of water in degrees Celsius is",
+      "The Mona Lisa was painted by",
+      "The plural of mouse is",
+      "2 + 2 =",
+      "The smallest prime number is",
+      "The capital of China is",
+      "The capital of India is",
+      "The capital of Greece is",
+      "The capital of Mexico is",
+      "The Statue of Liberty is located in",
+      "The Amazon rainforest is mostly located in",
+      "The powerhouse of the cell is the",
+      "The hardest natural substance on Earth is",
+      "The study of living things is called",
+      "The first person to walk on the Moon was",
+      "The telephone was invented by",
+      "The Harry Potter books were written by",
+      "The Odyssey was written by",
+      "The main language spoken in Brazil is",
+      "The official language of Mexico is",
+      "Bees make"
+    ],
+    "pico_only": [
+      "Martin Luther King Jr. is famous for his speech"
+    ],
+    "note": "auto-check verdicts after reading every completion; see review_note in emergent_results.csv"
+  }
 }

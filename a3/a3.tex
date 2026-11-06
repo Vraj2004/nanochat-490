@@ -103,7 +103,7 @@ The ReLU$^2$ MLP has not changed, and RoPE is still applied to every head dimens
 
 ModernBERT \cite{modernbert} updated BERT \cite{bert} with components from recent LLMs and tested its choices with ablations. July nanochat already has most of them, including bias-free layers, RoPE, pre-norm, alternating local and global attention, and FlashAttention. We take three ideas from ModernBERT that nanochat lacks: the GeGLU MLP, separate RoPE $\theta$ values for local and global layers, and partial RoPE, which ModernBERT tested but did not adopt. Table~\ref{tab:changes} summarizes them and Figure~\ref{fig:changes} shows each one.
 
-\textbf{What we ablate.} Part 2 ablates GeGLU and partial RoPE. At d12 neither changes the parameter count or FLOPs, and each is a single flag, so a gap from the baseline that is larger than seed noise can be attributed to the change. We leave change 3 for Part 4: ModernBERT found no difference between $\theta$ settings during pretraining and only raised the global $\theta$ when it extended its context length. ModernBERT's ablations used encoders of at most 150M parameters, so the results may not carry over to a causal decoder like nanochat.
+\textbf{What we ablate.} Part 2 ablates GeGLU and partial RoPE. At d12 neither changes the parameter count or FLOPs, and each is a single flag, so a gap from the baseline that is larger than seed noise can be attributed to the change. We did not test change 3. ModernBERT found no difference between $\theta$ settings during pretraining and only raised the global $\theta$ when it extended its context length, so the change could only show an effect in a context-extension run like Part 4's, which we ran without it. ModernBERT's ablations used encoders of at most 150M parameters, so the results may not carry over to a causal decoder like nanochat.
 
 \begin{figure}[H]
   \centering
@@ -224,7 +224,7 @@ MFU (\%) & 41.6 & 39.9 & 39.4 \\
 
 \subsection*{Final Model Configuration}
 
-Table~\ref{tab:final-config} gives the data, architecture and hardware configuration of our final nanochat and why we chose it. Most of the justification comes from our picochat runs in Parts 2 and 4, and several choices keep the final model directly comparable with the d12 picochat.
+Table~\ref{tab:final-config} lists our final nanochat's data, architecture and hardware, with the reason for each choice. The reasons come mostly from our picochat runs in Parts 2 and 4, and several choices keep the final model directly comparable with the d12 picochat.
 
 {\small
 \renewcommand{\arraystretch}{1.3}
@@ -260,11 +260,11 @@ A 20-step smoke test of d20 on 8 H200s peaked at about 72 GiB per GPU (d12 used 
 \end{longtable}
 }
 
-\textbf{Training.} We launched the run through our Modal script with \code{--depth=20 --rope-frac=0.5}, saving a checkpoint every 1,000 steps, and left every other setting at its default. nanochat's batch-size rule chose about 1M tokens per step for d20, twice the d12 batch, and raised the learning rates by $\sqrt{2}$ to match. Our first attempt stopped at step 1,920 of 4,980, most likely when the Modal client on our laptop shut down, and it had saved no checkpoint. We relaunched it to run independently of the laptop, which is why we added checkpoints. The completed run trained for 4,980 steps on 5.22B tokens ($1.51 \times 10^{19}$ FLOPs) in 64.7 minutes, at 1.34M tokens per second and 49.0\% MFU. The job cost \$52.08 in Modal credits, including startup and evaluation. Together with the failed attempt, the smoke test and the scaling-law runs below, Part 5 used about \$97. The final model reached a validation BPB of 0.7367 and a CORE score of 0.242, compared with 0.8454 and 0.173 for the d12 baseline. The full CORE evaluation over every example, instead of 500 per task, gives 0.239, close to the 0.257 of GPT-2 (1.6B) \cite{nanochat}.
+\textbf{Training.} We launched the run through our Modal script with \code{--depth=20 --rope-frac=0.5}, saved a checkpoint every 1,000 steps, and left every other setting at its default. For d20, nanochat's batch-size rule picked about 1M tokens per step, twice the d12 batch, and scaled the learning rates up by $\sqrt{2}$ to match. Our first attempt stopped at step 1,920 of 4,980 with no checkpoint saved, most likely because the Modal client on our laptop shut down. We relaunched the run so that it no longer depended on the laptop, and added the checkpoints in case it stopped again. The completed run took 64.7 minutes for 4,980 steps and 5.22B tokens ($1.51 \times 10^{19}$ FLOPs), averaging 1.34M tokens per second and 49.0\% MFU. It cost \$52.08 in Modal credits including startup and evaluation. Part 5 as a whole cost \$155.76, which also covers the failed attempt, the smoke test, the scaling-law runs below, and a d20 baseline and a second-seed picochat that we used to judge partial RoPE (see Results). All of these runs are logged in the same W\&B project as Part 2 (\code{d20\_final\_v2}, \code{d20\_baseline}, \code{d12\_rope50\_seed1337} and the \code{d*\_rope50\_scaling} runs). The final model reached a validation BPB of 0.7367 and a CORE score of 0.242, against 0.8454 and 0.173 for the d12 baseline. Scored on every CORE example instead of 500 per task, it reaches 0.239, while GPT-2 (1.6B) scores 0.257 \cite{nanochat}.
 
 \subsection*{Scaling Law: Predicted vs Actual}
 
-To predict the nanochat's loss from cheap runs, we trained three more picochats (d8, d10 and d14) with the same recipe as the final model: partial RoPE, 12 tokens per scaling parameter, ClimbMix and the same tokenizer. Together with the d12 partial RoPE run from Part 2, they span a 15-fold range of compute (Table~\ref{tab:part5-points}). Our eval dataset is ClimbMix's held-out validation shard: every run reports its BPB on the same 42M validation tokens at the end of training. Following Kaplan et al.\ \cite{kaplan} and Hoffmann et al.\ \cite{chinchilla}, we model the loss as a power law in training compute, $\text{BPB} = a\,C^{-b}$, which is a straight line in log-log space, and fit it by least squares to the four picochats only.
+To predict the nanochat's loss from cheap runs, we trained three more picochats (d8, d10 and d14) with the final model's recipe: partial RoPE, 12 tokens per scaling parameter, ClimbMix and the same tokenizer. With the d12 partial RoPE run from Part 2, they cover a 15-fold range of compute (Table~\ref{tab:part5-points}). The eval dataset is ClimbMix's held-out validation shard, and every run reports its BPB on the same 42M validation tokens at the end of training. Following Kaplan et al.\ \cite{kaplan} and Hoffmann et al.\ \cite{chinchilla}, we model the loss as a power law in training compute, $\text{BPB} = a\,C^{-b}$, a straight line in log-log space, and fit it by least squares to the four picochats. Some picochat runs finished after the d20, so we fitted the law afterwards, but the d20 itself is not part of the fit.
 
 \begin{table}[H]
 \centering
@@ -285,56 +285,58 @@ d20 (actual) & 435.2M & 5.22B & $1.51 \times 10^{19}$ & 0.7367 & 0.242 & 64.7 mi
 \end{tabular}
 \end{table}
 
-The fit is $\text{BPB} = 8.80\,C^{-0.0565}$. It matches the picochats closely ($R^2 = 0.999$ in log space), with every point within 0.33\% of the line. At the d20's $1.51 \times 10^{19}$ FLOPs it predicts a validation BPB of 0.7265, and refitting with each picochat left out in turn gives predictions between 0.7230 and 0.7278. The d20 reached 0.7367, 1.4\% worse than predicted and just outside that range (Figure~\ref{fig:part5-scaling}).
+The fit is $\text{BPB} = 8.80\,C^{-0.0565}$, and all four picochats lie within 0.33\% of it ($R^2 = 0.999$ in log space). At the d20's $1.51 \times 10^{19}$ FLOPs it predicts a validation BPB of 0.7265, and leaving out one picochat at a time and refitting gives predictions from 0.7230 to 0.7278. The d20 reached 0.7367, 1.4\% worse than predicted and just outside that range (Figure~\ref{fig:part5-scaling}).
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\textwidth]{part5_scaling.pdf}
+\includegraphics[width=0.62\textwidth]{part5_scaling.pdf}
 \caption{Validation BPB against training compute. The line is fitted to the four picochats; the open circle is its d20 prediction, with the range from leave-one-out refits, and the star is the actual d20.}
 \label{fig:part5-scaling}
 \end{figure}
 
-The prediction was close but optimistic, and we see three reasons. First, a pure power law assumes the loss keeps falling at the same rate, while real scaling curves bend toward an irreducible loss. Hoffmann et al.\ model this with a constant term, $L = E + A\,C^{-\alpha}$ \cite{chinchilla}, but four points are too few to fit that extra parameter reliably, so our line is likely too steep at large compute. Second, the d20 is 6.8 times beyond our largest fitted model, so a small error in the slope grows over the extrapolation. Third, the recipe is not perfectly constant across sizes: nanochat's batch-size rule gave d8 262K tokens per step, d10 to d14 524K and d20 1M, with matching learning-rate changes. In absolute terms the error is small, 0.010 BPB against the 0.073 BPB the model gained from d14 to d20.
+The prediction was close but too optimistic. The likeliest cause is the form of the law: a pure power law assumes the loss keeps falling at the same rate, while real scaling curves bend toward an irreducible loss. Hoffmann et al.\ add a constant term for this, $L = E + A\,C^{-\alpha}$ \cite{chinchilla}, but four points are too few to fit the extra parameter reliably, so our line is probably too steep at large compute. The extrapolation is also long: the d20 used 6.8 times the compute of our largest fitted model, so a small error in the slope becomes a larger error in the prediction. The recipe also changes slightly with size, because nanochat's batch-size rule gave d8 262K tokens per step, d10 to d14 524K and d20 1M, and scaled the learning rates for d8 and d20 to match. Even so, the miss is 0.010 BPB, small next to the 0.073 BPB the model gained from d14 to d20.
 
-CORE does not follow a power law, but over these runs it grew roughly linearly in log compute. A straight-line fit of CORE against $\log_{10} C$ on the four picochats predicts 0.244 for the d20, close to the 0.242 it reached.
+We did not fit a power law to CORE. Over these runs it grew roughly linearly with log compute, and a straight-line fit of CORE against $\log_{10} C$ on the four picochats predicts 0.244 for the d20, which reached 0.242.
 
 \subsection*{Results}
 
-Table~\ref{tab:part5-results} compares the final nanochat with the two d12 picochats from Part 2.
+Table~\ref{tab:part5-results} compares the final nanochat with a d20 baseline, trained with full RoPE for this comparison, and with the two d12 picochats from Part 2.
 
 \begin{table}[H]
 \centering
-\caption{Picochat and nanochat results. CORE uses 500 examples per task, as in Part 2. Prompts correct is the number of our 99 completion prompts answered correctly (see Emergent Abilities).}
+\caption{Picochat and nanochat results. CORE uses 500 examples per task, as in Part 2. Prompts correct is the number of our 99 completion prompts answered correctly after manual review (see Emergent Abilities).}
 \label{tab:part5-results}
 \small
-\begin{tabular}{@{}lrrr@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
- & Picochat (baseline) & Picochat (partial RoPE) & Nanochat (partial RoPE) \\
+ & \multicolumn{2}{c}{Picochat (d12)} & \multicolumn{2}{c}{Nanochat (d20)} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+ & Baseline & Partial RoPE & Baseline & Partial RoPE (final) \\
 \midrule
-Depth / width & d12 / 768 & d12 / 768 & d20 / 1,280 \\
-Scaling parameters & 110.1M & 110.1M & 435.2M \\
-Training tokens & 1.32B & 1.32B & 5.22B \\
-Training FLOPs & $1.00 \times 10^{18}$ & $1.00 \times 10^{18}$ & $1.51 \times 10^{19}$ \\
-Hardware & $8 \times$ H200 & $8 \times$ H100 & $8 \times$ H200 \\
-Batch size (tokens) & 524K & 524K & 1.05M \\
-Training time (min) & 5.2 & 5.4 & 64.7 \\
-MFU (\%) & 41.6 & 39.4 & 49.0 \\
-Final validation BPB & 0.8454 & 0.8451 & 0.7367 \\
-Final CORE & 0.173 & 0.171 & 0.242 \\
-Prompts correct (of 99) & -- & 50 & 74 \\
+Width & 768 & 768 & 1,280 & 1,280 \\
+Scaling parameters & 110.1M & 110.1M & 435.2M & 435.2M \\
+Training tokens & 1.32B & 1.32B & 5.22B & 5.22B \\
+Training FLOPs & $1.00 \times 10^{18}$ & $1.00 \times 10^{18}$ & $1.51 \times 10^{19}$ & $1.51 \times 10^{19}$ \\
+Hardware & $8 \times$ H200 & $8 \times$ H100 & $8 \times$ H200 & $8 \times$ H200 \\
+Batch size (tokens) & 524K & 524K & 1.05M & 1.05M \\
+Training time (min) & 5.2 & 5.4 & 65.0 & 64.7 \\
+MFU (\%) & 41.6 & 39.4 & 48.7 & 49.0 \\
+Final validation BPB & 0.8454 & 0.8451 & 0.7371 & 0.7367 \\
+Final CORE & 0.173 & 0.171 & 0.235 & 0.242 \\
+Prompts correct (of 99) & -- & 49 & -- & 72 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Scale.} Going from d12 to d20 multiplied training compute by 15 and is by far the largest change. Validation BPB fell by 12.8\% (0.845 to 0.737), CORE rose by 0.07 (0.171 to 0.242), and the model answered 24 more of our prompts correctly. The larger model also used the GPUs better: MFU rose from about 40\% to 49\%, because the bigger matrix multiplications keep the H200s busier.
+\textbf{Scale.} The partial RoPE picochat and the nanochat share an architecture and differ in size, so the gap between them measures scale. Going from d12 to d20 multiplied training compute by 15. Validation BPB fell by 12.8\% (0.845 to 0.737), CORE rose from 0.171 to 0.242, and the nanochat answered 23 more of our 99 prompts correctly. MFU rose too, from about 40\% to 49\%, most likely because d20's larger matrix multiplications keep the GPUs busier.
 
-\textbf{Partial RoPE.} We kept partial RoPE because it matched the baseline at d12 in Part 2. We did not train a d20 baseline, which would have cost another \$52, so we cannot measure its effect at d20 directly. The d20 landed 1.4\% above the trend fitted to partial RoPE picochats, which gives no sign that partial RoPE helps more at larger scale, but we cannot separate this from the extrapolation error discussed above.
+\textbf{Partial RoPE.} We kept partial RoPE because it matched the baseline at d12 in Part 2. To measure it at d20, we also trained a d20 baseline with full RoPE and otherwise identical settings. Partial RoPE finished slightly ahead, by 0.0004 BPB (0.7367 vs 0.7371) and 0.007 CORE (0.242 vs 0.235). Its training curve repeated the d12 pattern from Part 2: it trailed early, by 0.006 BPB at step 250, caught up by step 500, and was ahead at 15 of its 20 evaluations, with every gap after step 500 under 0.001 in either direction. To judge gaps this small, we retrained the d12 partial RoPE picochat with a second seed (1337 instead of 42), which changes only the weight initialization. The two seeds differed by 0.0008 BPB and 0.013 CORE, more than either d20 gap. One pair of seeds at d12 is only a rough estimate of the noise, but by that estimate partial RoPE is still indistinguishable from the baseline at d20, as it was at d12.
 
-\textbf{Excluded changes.} We left out GeGLU, which was slightly worse at d12, and the short-context recipe from Part 4, which lowered CORE. Neither is part of the final model, so the nanochat's gains come from scale under the July architecture with partial RoPE.
+\textbf{Excluded changes.} GeGLU, slightly worse at d12, and Part 4's short-context recipe, which lowered CORE, are not in the final model. The nanochat's gains therefore come from scale on the July architecture with partial RoPE.
 
 \subsection*{Emergent Abilities}
 
-Wei et al.\ call an ability emergent if it is absent in smaller models but present in larger ones \cite{wei-emergent}. To look for such abilities, we gave the d12 partial RoPE picochat and the d20 nanochat the same 99 short completion prompts covering geography, science, history, language and arithmetic. Both are base models without chat finetuning, so each prompt is the start of a sentence (for example ``The capital of Japan is''), and each model completes it with greedy decoding for 12 tokens. A script marks a completion correct if an accepted answer appears in its first six words, and we then read every completion to remove false matches. The picochat answered 50 prompts correctly and the nanochat 74. The nanochat was right and the picochat wrong on 25 prompts; the reverse happened once. Table~\ref{tab:emergent} lists 10 of the 25.
+Wei et al.\ call an ability emergent if it is absent in smaller models but present in larger ones \cite{wei-emergent}. To look for such abilities, we gave the d12 partial RoPE picochat and the d20 nanochat the same 99 short prompts on geography, science, history, language and arithmetic. Both are base models without chat finetuning, so each prompt is the start of a sentence, such as ``The capital of Japan is'', and each model continues it for 12 tokens with greedy decoding. A script marked a completion correct if an accepted answer appeared in its first six words; we then read every completion and corrected three of its verdicts. After that review the picochat answered 49 prompts correctly and the nanochat 72. The nanochat was right and the picochat wrong on 24 prompts, and the reverse happened once. Table~\ref{tab:emergent} lists 10 of the 24.
 
 {\small
 \renewcommand{\arraystretch}{1.3}
@@ -367,9 +369,9 @@ Wei et al.\ call an ability emergent if it is absent in smaller models but prese
 \end{longtable}
 }
 
-Most of the nanochat's new abilities are factual recall: capitals, scientists, inventors and basic science facts that the picochat gets wrong or avoids. Both models still fail every arithmetic prompt (the nanochat completes ``7 + 5 ='' with 10), and the nanochat still makes factual errors, such as naming Sydney as the capital of Australia. The one prompt only the picochat got right was the name of Martin Luther King Jr.'s ``I Have a Dream'' speech.
+Most of what the nanochat gained is factual recall: capitals, scientists, inventors and basic science that the picochat gets wrong or avoids. Arithmetic is still out of reach for both. The picochat got none of the 10 arithmetic prompts right and the nanochat got two, ``2 + 2 ='' and the smallest prime number, while completing ``7 + 5 ='' with 10. The nanochat also still makes factual errors, such as naming Sydney as the capital of Australia. The one prompt only the picochat got right asked for the name of Martin Luther King Jr.'s ``I Have a Dream'' speech.
 
-We would not call these abilities emergent in the strong sense of a sudden jump. CORE rose steadily with compute and fell on the line predicted from the picochats, so the nanochat's gains look like the continuation of a smooth trend. This fits Schaeffer et al.\ \cite{schaeffer-mirage}, who argue that many reported emergent abilities come from all-or-nothing metrics: a question scored right or wrong appears to switch on at some scale even when the probability of the right answer grows smoothly. Our per-prompt checks are exactly such all-or-nothing tests.
+We would not call these abilities emergent in the sense of a sudden jump. CORE rose steadily with compute and landed on the line predicted from the picochats, so the nanochat's gains look like a smooth trend continuing. Schaeffer et al.\ \cite{schaeffer-mirage} argue that many reported emergent abilities come from all-or-nothing metrics: a question scored only right or wrong seems to switch on at some scale, even when the probability of the right answer grows smoothly. Our prompt checks are that kind of metric, so Table~\ref{tab:emergent} makes these abilities look more sudden than CORE suggests.
 
 \newpage
 \begin{thebibliography}{99}

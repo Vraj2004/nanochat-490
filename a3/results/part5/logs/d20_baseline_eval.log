@@ -1,0 +1,119 @@
+Autodetected device type: cuda
+2026-11-06 01:34:14,178 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 8
+2026-11-06 01:34:14,181 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/base_checkpoints/d20_baseline with step 4980
+2026-11-06 01:34:15,929 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 20, 'n_head': 10, 'n_kv_head': 10, 'n_embd': 1280, 'window_pattern': 'SSSL', 'mlp_type': 'relu2', 'rope_frac': 1.0}
+Evaluating model: base_model (step 4980)
+Eval modes: bpb, core, sample
+
+================================================================================
+Model Samples
+================================================================================
+
+Conditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>The capital of France is Paris, the largest city in the country. It is located in the south of
+--------------------------------------------------------------------------------
+<|bos|>The chemical symbol of gold is Au. It is a soft, yellow, malleable, and ductile metal
+--------------------------------------------------------------------------------
+<|bos|>If yesterday was Friday, then tomorrow will be Friday. If yesterday was Monday, then tomorrow will be Monday. If yesterday was
+--------------------------------------------------------------------------------
+<|bos|>The opposite of hot is cold. Cold is the opposite of hot. Cold is the opposite of hot.
+--------------------------------------------------------------------------------
+<|bos|>The planets of the solar system are: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Ne
+--------------------------------------------------------------------------------
+<|bos|>My favorite color is blue. I love the color blue. I love the color blue. I love
+--------------------------------------------------------------------------------
+<|bos|>If 5*x + 3 = 13, then x is a prime number. If 5*x + 3 = 13,
+
+Unconditioned samples:
+--------------------------------------------------------------------------------
+<|bos|>If the high dollar dog market is going to go too far in ensuring that retailers maintain an appealing reputation, what can your customers keep on hold? There are a number of years when K-9 officers had no choice but to draw their licenses; how many more will this turn around before customers realize their dogs need to stay professional?
+I will continue to read through CMI's Human Development Chapter in 02 but I will not offer it.
+However, I did find what I thought was read a bit loose and much of what I have quoted below is very much too loose and not specific enough to draw the correct conclusions.
+Highlight may be
+--------------------------------------------------------------------------------
+<|bos|>Many businesses recognize the benefits of polyethylene roof roll, but not a lot of them understand how important the proper cool roof installation truly is. Here's why you should care about yours and how to achieve professional, high-quality results.
+
+The Basics
+
+It's common knowledge that roofing materials are rated by thermal performance, but it's not a lot of information that people actually gain on this topic. Certain materials actually have a higher effective R-value and can help you make your existence more comfortable by keeping moisture and air off the surface. Regarding your roof cooler design, consider that real-world climate data can often be a better indicator than paper performance claims.
+--------------------------------------------------------------------------------
+<|bos|>Your description isn't very accurate. Even when I guess look at the color of a few classic styles of rug, most are rich that we don't have a lot of authentic black ones. Even when I guess look at the color of a few classic styles of rug, most are rich that we don't have a lot of authentic black ones. Sometimes the only way to tell you' to do the wheel is to try all of them and compare them to each other then decide which one is better.
+That's my thing. I can buy all my need to know of the dress and don't need to look up anything for someone. At
+--------------------------------------------------------------------------------
+<|bos|>Model,
+On 15.6.06 21:28, Christian Schielz <christiano at charlse.ch> wrote:
+>
+> * We will build the directory in a couple of weeks. Now we'd like to
+> release the project under this goal to give more users access to it and to make
+> more people use it.
+>> specs/ praz/ permanent-app-remux-launch.html
+<![CDATA[Pravor has agreed that beta provides a way to prove projects in the
+need of development if the deliverible that we expect.
+The way we intend
+--------------------------------------------------------------------------------
+<|bos|>Dive for the rich: You can dive whole communities, busy forests, amazing hotels, and dive parks. Trade archaisms with other divers from around the world and enrich your knowledge. This is an incredible experience and one you will remember for years to come!
+5. Stop and Relax!
+Time to man your own Jacques Cousteau square and relax. The whole world's tourist dive industry can make money if everything is relegated to the traditional level, and wet cities are not far your reach. Many new scuba divers want to travel the world. You will invariably find yourself in a city with a thriving tourist trade,
+--------------------------------------------------------------------------------
+<|bos|>These species are commonly known as "cape beetles", to describe an effect in plants and soils due to root pressure emitted by their feet.
+The most familiar, best known is the Coleophora family, which includes most species seen in gardens. They include largish beetle species, with single row (not branched...)
+Coleophora Wolf (centre to left) and Catriona Lady
+Coleophora Costata (centre to right) and Catriona Lady
+"The larvae of beetles casting tremendous damage."
+These insects are found in gardens, along vacant rights, among rubbish bins and domestic furnishings
+--------------------------------------------------------------------------------
+<|bos|>How bonsai trees grow and why they look so realistic
+
+Author:jnsauvich minsson | last month: 097
+
+Completing an arts project is a very challenging endeavor and owners must feel they are doing it right by their children and also to the desires of the adult world. The desire to produce means, ninety percent of the things that a child tries to do are nothing more than a good old-fashioned punishment. Even though a child will skip a fly tackle and put off a march of artillery, no desire will ever justify the desire to kill a five week old chicken in the kitchen!
+
+Just like these
+--------------------------------------------------------------------------------
+<|bos|>pointing. Most hunters use the bow down bow whenever possible since it provides a much better
+experience and guides the descrees more accurately. PDS's
+relay system is a great option for hunters paddling an inflatable
+wheel chair.
+Lure
+There's no school of thought that says inflatable lures are the only good thing about
+buoyers in a hurry. When someone is on the hunt, wind direction and timing can
+be crucial determinants on whether a fish is biting or not.
+Which brings us to lure
+devices. There are two particular fishing lures available
+and they're how most people think about lures
+
+================================================================================
+BPB Evaluation
+================================================================================
+train bpb: 0.736266
+val bpb: 0.734339
+
+================================================================================
+CORE Evaluation
+================================================================================
+Evaluating: hellaswag_zeroshot (0-shot, type: multiple_choice)... accuracy: 0.5139 | centered: 0.3519 | time: 21.21s
+Evaluating: jeopardy (10-shot, type: language_modeling)... accuracy: 0.0746 | centered: 0.0746 | time: 4.64s
+Evaluating: bigbench_qa_wikidata (10-shot, type: language_modeling)... accuracy: 0.4411 | centered: 0.4411 | time: 44.05s
+Evaluating: arc_easy (10-shot, type: multiple_choice)... accuracy: 0.6768 | centered: 0.5690 | time: 5.83s
+Evaluating: arc_challenge (10-shot, type: multiple_choice)... accuracy: 0.3788 | centered: 0.1718 | time: 2.75s
+Evaluating: copa (0-shot, type: multiple_choice)... accuracy: 0.6100 | centered: 0.2200 | time: 0.26s
+Evaluating: commonsense_qa (10-shot, type: multiple_choice)... accuracy: 0.2367 | centered: 0.0459 | time: 2.89s
+Evaluating: piqa (10-shot, type: multiple_choice)... accuracy: 0.7285 | centered: 0.4570 | time: 4.53s
+Evaluating: openbook_qa (0-shot, type: multiple_choice)... accuracy: 0.3880 | centered: 0.1840 | time: 1.11s
+Evaluating: lambada_openai (0-shot, type: language_modeling)... accuracy: 0.4128 | centered: 0.4128 | time: 10.68s
+Evaluating: hellaswag (10-shot, type: multiple_choice)... accuracy: 0.5135 | centered: 0.3514 | time: 26.40s
+Evaluating: winograd (0-shot, type: schema)... accuracy: 0.6190 | centered: 0.2381 | time: 0.58s
+Evaluating: winogrande (0-shot, type: schema)... accuracy: 0.5564 | centered: 0.1129 | time: 2.55s
+Evaluating: bigbench_dyck_languages (10-shot, type: language_modeling)... accuracy: 0.0870 | centered: 0.0870 | time: 2.40s
+Evaluating: agi_eval_lsat_ar (3-shot, type: multiple_choice)... accuracy: 0.2522 | centered: 0.0652 | time: 0.59s
+Evaluating: bigbench_cs_algorithms (10-shot, type: language_modeling)... accuracy: 0.3939 | centered: 0.3939 | time: 2.94s
+Evaluating: bigbench_operators (10-shot, type: language_modeling)... accuracy: 0.1667 | centered: 0.1667 | time: 0.48s
+Evaluating: bigbench_repeat_copy_logic (10-shot, type: language_modeling)... accuracy: 0.0312 | centered: 0.0312 | time: 0.08s
+Evaluating: squad (10-shot, type: language_modeling)... accuracy: 0.3664 | centered: 0.3664 | time: 26.65s
+Evaluating: coqa (0-shot, type: language_modeling)... accuracy: 0.3016 | centered: 0.3016 | time: 17.43s
+Evaluating: boolq (10-shot, type: multiple_choice)... accuracy: 0.5566 | centered: -0.1669 | time: 8.57s
+Evaluating: bigbench_language_identification (10-shot, type: multiple_choice)... accuracy: 0.2490 | centered: 0.1738 | time: 39.77s
+
+Results written to: /data/base_eval/base_model_004980.csv
+CORE metric: 0.2295
