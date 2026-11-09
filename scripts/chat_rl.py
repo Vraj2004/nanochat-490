@@ -18,6 +18,7 @@ torchrun --standalone --nproc_per_node=8 -m scripts.chat_rl -- --run=default
 
 import argparse
 import os
+import json
 import itertools
 import wandb
 import torch
@@ -74,6 +75,12 @@ wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(project="nanochat-rl
 model, tokenizer, meta = load_model("sft", device, phase="eval", model_tag=args.model_tag, step=args.model_step)
 engine = Engine(model, tokenizer) # for sampling rollouts
 
+# Every rollout is logged (one JSON line per training example per rank) to analyze which problems the model gets right/wrong
+output_dirname = args.model_tag if args.model_tag else f"d{model.config.n_layer}"
+rollout_dir = os.path.join(get_base_dir(), "chatrl_rollouts", output_dirname)
+os.makedirs(rollout_dir, exist_ok=True)
+rollout_file = open(os.path.join(rollout_dir, f"rank{ddp_rank}.jsonl"), "w")
+
 # -----------------------------------------------------------------------------
 # Rollout / sampling generator loop that yields batches of examples for training
 
@@ -116,14 +123,17 @@ def get_batch():
 
         # Calculate the rewards for each sample
         rewards = []
+        generated_texts = []
         for sample_tokens in generated_token_sequences:
             # Get just the generated tokens (after the prompt)
             generated_tokens = sample_tokens[prefix_length:]
             # Decode the generated response
             generated_text = tokenizer.decode(generated_tokens)
+            generated_texts.append(generated_text)
             # Calculate the reward
             reward = train_task.reward(conversation, generated_text)
             rewards.append(reward)
+        rollout_file.write(json.dumps({"step": step, "idx": example_idx, "rewards": rewards, "completions": generated_texts}) + "\n")
 
         # Pad the sequences so that their lengths (in time) match
         max_length = max(len(seq) for seq in generated_token_sequences)
@@ -322,5 +332,6 @@ for step in range(num_steps):
         )
         print(f"✅ Saved model checkpoint to {checkpoint_dir}")
 
+rollout_file.close()
 wandb_run.finish() # wandb run finish
 compute_cleanup()

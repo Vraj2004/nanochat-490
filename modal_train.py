@@ -25,6 +25,12 @@ One-time setup on your machine:
    Evaluate any checkpoint on its own with the passkey eval:
     modal run modal_train.py::passkey --model-tag d12_ctx512 --step 2016 --widen
 
+4) A4: SFT the base model, then RL on GSM8K, evaluating each (logs go to /data/logs/<log-name>.log):
+    modal run --detach modal_train.py::chat --script chat_sft --log-name d20_sft --args "--model-tag=d20_final_v2 --run=d20_sft"
+    modal run --detach modal_train.py::chat --script chat_eval --log-name d20_sft_eval --args "-i sft -g d20_final_v2"
+    modal run --detach modal_train.py::chat --script chat_rl --log-name d20_rl --args "--model-tag=d20_final_v2 --run=d20_rl"
+    modal run --detach modal_train.py::chat --script chat_eval --log-name d20_rl_eval --args "-i rl -g d20_final_v2 -a GSM8K"
+
 To see why Flash Attention 3 fails to load (uses 1 GPU briefly):
     modal run modal_train.py::check_fa3
 
@@ -196,6 +202,20 @@ def context_ext_remote(run_name: str, depth: int, num_iterations: int, switch_st
         _base_eval(f"{run_name}_step{num_iterations}", run_name, num_iterations)
 
 
+@app.function(
+    volumes={VOLUME_DIR: volume},
+    gpu=GPU,
+    secrets=[wandb_secret],
+    timeout=6 * 3600,
+)
+def chat_remote(script: str, log_name: str, args: str):
+    log_dir = os.path.join(VOLUME_DIR, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    cmd = f"torchrun --standalone --nproc_per_node={NUM_GPUS} -m scripts.{script} -- {args}"
+    _run(f"set -o pipefail; {cmd} 2>&1 | tee {log_dir}/{log_name}.log")
+    volume.commit()
+
+
 @app.function(volumes={VOLUME_DIR: volume}, gpu=GPU, timeout=2 * 3600)
 def passkey_remote(model_tag: str, step: int, widen: bool, extra_args: str):
     _passkey(model_tag, step, widen, extra_args)
@@ -258,6 +278,17 @@ def context_ext(run_name: str = "d12_ctx512", depth: int = 12, num_iterations: i
 def passkey(model_tag: str, step: int, widen: bool = False, extra_args: str = ""):
     print(f"Passkey eval of {model_tag} step {step} (widen={widen}) on {GPU} with extra args: {extra_args!r}")
     passkey_remote.remote(model_tag, step, widen, extra_args)
+
+
+@app.local_entrypoint()
+def chat(script: str, log_name: str, args: str = ""):
+    """A4: run scripts.chat_sft, scripts.chat_rl or scripts.chat_eval with the given args."""
+    print(f"Launching scripts.{script} on {GPU} with args: {args!r}")
+    call = chat_remote.spawn(script, log_name, args)
+    if "--detach" in sys.argv:
+        print(f"Spawned {call.object_id} in the background, safe to close this terminal.")
+    else:
+        call.get()
 
 
 @app.local_entrypoint()
