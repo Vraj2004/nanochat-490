@@ -26,7 +26,7 @@ import torch.distributed as dist
 from nanochat.common import compute_init, compute_cleanup, print0, get_base_dir, DummyWandb, autodetect_device_type
 from nanochat.checkpoint_manager import save_checkpoint, load_model
 from nanochat.engine import Engine
-from tasks.gsm8k import GSM8K
+from tasks.gsm8k import GSM8K, GSM8KShaped
 
 # -----------------------------------------------------------------------------
 # CLI arguments
@@ -38,6 +38,9 @@ parser.add_argument("--device-type", type=str, default="", help="cuda|cpu|mps (e
 # Model loading
 parser.add_argument("--model-tag", type=str, default=None, help="model tag to load from")
 parser.add_argument("--model-step", type=int, default=None, help="model step to load from")
+parser.add_argument("--output-tag", type=str, default=None, help="tag to save checkpoints and rollouts under (default = --model-tag)")
+# Environment (training reward)
+parser.add_argument("--env", type=str, default="gsm8k", choices=["gsm8k", "gsm8k_finish", "gsm8k_partial", "gsm8k_finish_partial"], help="gsm8k = correctness only; _finish / _partial add the shaped bonuses in tasks/gsm8k.py")
 # Training horizon
 parser.add_argument("--num-epochs", type=int, default=1, help="number of epochs over GSM8K")
 # Batch sizes / sampling
@@ -76,7 +79,7 @@ model, tokenizer, meta = load_model("sft", device, phase="eval", model_tag=args.
 engine = Engine(model, tokenizer) # for sampling rollouts
 
 # Every rollout is logged (one JSON line per training example per rank) to analyze which problems the model gets right/wrong
-output_dirname = args.model_tag if args.model_tag else f"d{model.config.n_layer}"
+output_dirname = args.output_tag or args.model_tag or f"d{model.config.n_layer}"
 rollout_dir = os.path.join(get_base_dir(), "chatrl_rollouts", output_dirname)
 os.makedirs(rollout_dir, exist_ok=True)
 rollout_file = open(os.path.join(rollout_dir, f"rank{ddp_rank}.jsonl"), "w")
@@ -84,7 +87,7 @@ rollout_file = open(os.path.join(rollout_dir, f"rank{ddp_rank}.jsonl"), "w")
 # -----------------------------------------------------------------------------
 # Rollout / sampling generator loop that yields batches of examples for training
 
-train_task = GSM8K(subset="main", split="train")
+train_task = GSM8KShaped(subset="main", split="train", finish="finish" in args.env, partial="partial" in args.env)
 val_task = GSM8K(subset="main", split="test")
 num_steps = (len(train_task) // args.examples_per_step) * args.num_epochs
 print0(f"Calculated number of steps: {num_steps}")
@@ -124,6 +127,7 @@ def get_batch():
         # Calculate the rewards for each sample
         rewards = []
         generated_texts = []
+        terms = [] # (correct, finish, matched intermediates) per sample, logged separately from the shaped reward
         for sample_tokens in generated_token_sequences:
             # Get just the generated tokens (after the prompt)
             generated_tokens = sample_tokens[prefix_length:]
@@ -133,7 +137,10 @@ def get_batch():
             # Calculate the reward
             reward = train_task.reward(conversation, generated_text)
             rewards.append(reward)
-        rollout_file.write(json.dumps({"step": step, "idx": example_idx, "rewards": rewards, "completions": generated_texts}) + "\n")
+            terms.append(train_task.reward_terms(conversation, generated_text))
+        correct, finish, matched = (list(x) for x in zip(*terms))
+        rollout_file.write(json.dumps({"step": step, "idx": example_idx, "rewards": rewards, "correct": correct,
+                                       "finish": finish, "matched": matched, "completions": generated_texts}) + "\n")
 
         # Pad the sequences so that their lengths (in time) match
         max_length = max(len(seq) for seq in generated_token_sequences)
@@ -153,7 +160,7 @@ def get_batch():
         mu = rewards.mean()
         advantages = rewards - mu
         # yield inputs/targets as (B, T) of ids and rewards as (B,) of floats
-        yield generated_token_sequences, inputs, targets, rewards, advantages
+        yield generated_token_sequences, inputs, targets, rewards, advantages, correct
 
 # -----------------------------------------------------------------------------
 # Simple evaluation loop for GSM8K pass@k
@@ -254,10 +261,11 @@ for step in range(num_steps):
 
     # Forward/Backward on rollouts over multiple examples in the dataset
     rewards_list = []
+    correct_list = [] # fraction of correct samples, = reward for --env=gsm8k
     sequence_lengths = []
     for example_step in range(examples_per_rank):
         # Get one batch corresponding to one example in the training dataset
-        sequences_all, inputs_all, targets_all, rewards_all, advantages_all = next(batch_iterator)
+        sequences_all, inputs_all, targets_all, rewards_all, advantages_all, correct_all = next(batch_iterator)
         # Evaluate the loss and gradients
         model.train() # ensure the model is in train mode
         # We need one more loop because we can never exceed the device_batch_size
@@ -284,22 +292,28 @@ for step in range(num_steps):
             print0(f"Step {step}/{num_steps} | Example step {example_step} | Pass {pass_idx} | loss: {loss.item():.6f} | Average reward: {rewards.mean().item()}")
         # For logging
         rewards_list.append(rewards_all.mean().item())
+        correct_list.append(sum(correct_all) / len(correct_all))
         sequence_lengths.extend(len(seq) for seq in sequences_all)
 
     # A bunch of logging for how the rollouts went this step
     mean_reward = sum(rewards_list) / len(rewards_list)
+    mean_correct = sum(correct_list) / len(correct_list)
     mean_sequence_length = sum(sequence_lengths) / len(sequence_lengths)
     if ddp: # aggregate across ranks
         mean_reward_tensor = torch.tensor(mean_reward, dtype=torch.float, device=device)
+        mean_correct_tensor = torch.tensor(mean_correct, dtype=torch.float, device=device)
         mean_sequence_length_tensor = torch.tensor(mean_sequence_length, dtype=torch.float, device=device)
         dist.all_reduce(mean_reward_tensor, op=dist.ReduceOp.AVG)
+        dist.all_reduce(mean_correct_tensor, op=dist.ReduceOp.AVG)
         dist.all_reduce(mean_sequence_length_tensor, op=dist.ReduceOp.AVG)
         mean_reward = mean_reward_tensor.item()
+        mean_correct = mean_correct_tensor.item()
         mean_sequence_length = mean_sequence_length_tensor.item()
-    print0(f"Step {step}/{num_steps} | Average reward: {mean_reward} | Average sequence length: {mean_sequence_length:.2f}")
+    print0(f"Step {step}/{num_steps} | Average reward: {mean_reward} | Average sequence length: {mean_sequence_length:.2f} | Correct: {mean_correct:.4f}")
     wandb_run.log({
         "step": step,
         "reward": mean_reward,
+        "correct": mean_correct,
         "sequence_length": mean_sequence_length,
     })
 
@@ -317,8 +331,6 @@ for step in range(num_steps):
     # Master process saves the model once in a while. Skip first step. Save last step.
     if master_process and ((step > 0 and step % args.save_every == 0) or step == num_steps - 1):
         base_dir = get_base_dir()
-        depth = model.config.n_layer
-        output_dirname = args.model_tag if args.model_tag else f"d{depth}" # base the model tag on the depth of the base model
         checkpoint_dir = os.path.join(base_dir, "chatrl_checkpoints", output_dirname)
         model_config_kwargs = model.config.__dict__ # slightly naughty, abusing the simplicity of GPTConfig, TODO nicer
         save_checkpoint(
