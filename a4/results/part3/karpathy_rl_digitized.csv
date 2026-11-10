@@ -1,0 +1,31 @@
+# Read by eye off the curves Karpathy published for the original d20 RL run
+# (github.com/karpathy/nanochat/discussions/1, "Reinforcement Learning (RL)"; karpathy_rl_curves.png).
+# reward_smoothed is W&B's smoothed line; pass@1/pass@8 are the evals every 60 steps (pass@8 is plotted
+# against minutes there, its 8 points are steps 0..420). Values are approximate (about +-0.003).
+step,reward_smoothed,pass1,pass8
+0,0.017,0.023,0.148
+25,0.021,,
+50,0.027,,
+60,,0.030,0.165
+75,0.026,,
+100,0.030,,
+120,,0.038,0.192
+125,0.039,,
+150,0.045,,
+175,0.043,,
+180,,0.050,0.207
+200,0.049,,
+225,0.051,,
+240,,0.050,0.203
+250,0.054,,
+275,0.033,,
+300,0.041,0.053,0.190
+325,0.048,,
+350,0.061,,
+360,,0.055,0.203
+375,0.050,,
+400,0.066,,
+420,,0.063,0.210
+425,0.058,,
+450,0.063,,
+466,0.057,,

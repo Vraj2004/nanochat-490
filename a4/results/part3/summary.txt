@@ -1,0 +1,96 @@
+7472 problems x 16 samples = 119552 answers, steps 0-466
+
+category                                                 all  steps<100  steps>=350
+Correct                                                23.2%      20.5%       25.4%
+Right number, wrong format (e.g. 16.0)                  0.0%       0.1%        0.0%
+No answer: hit the 256-token limit                      0.8%       1.6%        0.6%
+No answer: ended the turn mid-solution                 19.4%      22.9%       19.3%
+Wrong: answered an intermediate quantity                8.1%       7.4%        7.7%
+Wrong: repeated a number from the question              3.7%       3.5%        3.9%
+Wrong: final number never computed in the answer        3.3%       5.0%        3.3%
+Wrong: computed the wrong quantity                     41.5%      39.0%       39.7%
+
+problems never solved (0/16): 3221 (43.1%), always solved (16/16): 233 (3.1%)
+
+solve rate by gold solution steps (calculator calls): n, mean, steps<100, steps>=350
+  0                           95  0.138  0.165  0.161
+  1                          404  0.181  0.191  0.210
+  2                         2175  0.409  0.331  0.456
+  3                         2136  0.240  0.226  0.248
+  4                         1424  0.125  0.125  0.136
+  5                          785  0.073  0.078  0.085
+  6+                         453  0.024  0.017  0.022
+
+solve rate by topic: n, mean, steps<100, steps>=350
+  counting & other          1228  0.310  0.244  0.351
+  fractions & multiples     2671  0.210  0.193  0.217
+  money                      953  0.287  0.259  0.296
+  percent                   1009  0.161  0.149  0.193
+  time & rates              1611  0.220  0.202  0.252
+
+most common error on never-solved problems: setup 2158, ended_early 672, intermediate 242, copied 64, unsupported 64, ran_out 21
+
+examples (steps >= 300):
+--- Correct | problem 4801, gold 15
+  Q: Marcus has three times as many cheese crackers as Mona.  Nicholas has 6 more crackers than Mona.  If Marcus has 27 crackers, how many crackers does Nicholas have?
+  A: 'Mona has 27 / 3 = <|python_start|>27/3<|python_end|><|output_start|>9.0<|output_end|>9 cheese crackers.\nNicholas has 9 + 6 = <|python_start|>9+6<|python_end|><|output_start|>15<|output_end|>15 cheese crackers.\n#### 15'
+--- Correct | problem 4801, gold 15
+  Q: Marcus has three times as many cheese crackers as Mona.  Nicholas has 6 more crackers than Mona.  If Marcus has 27 crackers, how many crackers does Nicholas have?
+  A: 'Mona has 27 / 3 = <|python_start|>27/3<|python_end|><|output_start|>9.0<|output_end|>9 cheese crackers.\nNicholas has 9 + 6 = <|python_start|>9+6<|python_end|><|output_start|>15<|output_end|>15 cheese crackers.\n#### 15'
+--- Correct | problem 4801, gold 15
+  Q: Marcus has three times as many cheese crackers as Mona.  Nicholas has 6 more crackers than Mona.  If Marcus has 27 crackers, how many crackers does Nicholas have?
+  A: 'Mona has 27 / 3 = <|python_start|>27/3<|python_end|><|output_start|>9.0<|output_end|>9 cheese crackers.\nNicholas has 9 + 6 = <|python_start|>9+6<|python_end|><|output_start|>15<|output_end|>15 cheese crackers.\n#### 15'
+--- No answer: hit the 256-token limit | problem 4810, gold 36
+  Q: Joanna has $8. Compared to her money, her brother has thrice as much while her sister has only half as much. How much money do the three of them have altogether?
+  A: 'JoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoanna JoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoanna JoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoanna JoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoanna JoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoannaJoanna'
+--- No answer: hit the 256-token limit | problem 4810, gold 36
+  Q: Joanna has $8. Compared to her money, her brother has thrice as much while her sister has only half as much. How much money do the three of them have altogether?
+  A: 'JoannaJoannaJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJojoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJoJo'
+--- No answer: hit the 256-token limit | problem 4825, gold 3000
+  Q: Ben spends 20% of his after-tax income on his car. If his car payment is $400 and he pays 1/3 of his gross income in taxes, how much does he make per month before taxes?
+  A: 'His car payment is 400*.2=<|python_start|>400*.2<|python_end|><|output_start|>80.0<|output_end|>80.\nHe pays 80/3= <|python_start|>80/3<|python_end|><|output_start|>26.666666666666668<|output_end|>26.666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666'
+--- No answer: ended the turn mid-solution | problem 4800, gold 14000
+  Q: Gary manages two Amazon distribution centers. The first center processes 10000 packages per day, and the second center processes three times that volume. If Amazon makes 5 cents of profit per package, how much profit per week do the two centers make combined?
+  A: 'The second center processes 10000 * 3 = <|python_start|>10000*3<|python_end|><|output_start|>30000<|output_end|>30000 packages per day.\nThe total profit made by the two centers combined is 10000 + 30000 = <|python_start|>10000+30000<|python_end|><|output_start|>40000<|output_end|>40000.\nThus, the two centers make 40000 * 7 = <|python_start|>40000*7<|python_end|><|output_start|>280000<|output_end|>280000'
+--- No answer: ended the turn mid-solution | problem 4800, gold 14000
+  Q: Gary manages two Amazon distribution centers. The first center processes 10000 packages per day, and the second center processes three times that volume. If Amazon makes 5 cents of profit per package, how much profit per week do the two centers make combined?
+  A: 'The second center processes 10000 * 3 = <|python_start|>10000*3<|python_end|><|output_start|>30000<|output_end|>30000 packages per day.\nCombined, the two centers make 10000 + 30000 = <|python_start|>10000+30000<|python_end|><|output_start|>40000<|output_end|>40000 packages per day.\nAn'
+--- No answer: ended the turn mid-solution | problem 4800, gold 14000
+  Q: Gary manages two Amazon distribution centers. The first center processes 10000 packages per day, and the second center processes three times that volume. If Amazon makes 5 cents of profit per package, how much profit per week do the two centers make combined?
+  A: 'The second center processes 10000 * 3 = <|python_start|>10000*3<|python_end|><|output_start|>30000<|output_end|>30000 packages per day.\nThe total number of packages the two centers process in a week is 10000 +30000 = <|python_start|>10000+30000<|python_end|><|output_start|>40000<|output_end|>40000 packages.\nAn'
+--- Wrong: answered an intermediate quantity | problem 4802, gold 5
+  Q: Julio makes a mocktail every evening.  He uses 1 tablespoon of lime juice and tops with 1 cup of sparkling water.   He can usually squeeze 2 tablespoons of lime juice per lime.  After 30 days, if limes are 3 for $1.00, how much will he have spent on limes?
+  A: 'He uses 1 tablespoon of lime juice per drink and will use 3 limes for 30 days for a total of 1 * 30 = $<|python_start|>1*30<|python_end|><|output_start|>30<|output_end|>30\nThe limes will cost 30 * $1.00 = $<|python_start|>30*1<|python_end|><|output_start|>30<|output_end|>30\n#### 30'
+--- Wrong: answered an intermediate quantity | problem 4803, gold 320
+  Q: Suzie and 5 of her friends decide to rent an Airbnb at Lake Tahoe for 4 days from Thursday to Sunday. The rental rate for weekdays is $420 per day. The weekend rental rate is $540 per day. They all decide to split the rental evenly. How much does each person have to pay?
+  A: 'The cost of the rental for Thursday and Friday comes to $420 * 2 = $<|python_start|>420*2<|python_end|><|output_start|>840<|output_end|>840.\nThe cost of the rental over the weekend comes to $540 * 2 = $<|python_start|>540*2<|python_end|><|output_start|>1080<|output_end|>1080.\nSo each person has to pay $840 + $1080 = $<|python_start|>840+1080<|python_end|><|output_start|>1920<|output_end|>1920.\n#### 1920'
+--- Wrong: answered an intermediate quantity | problem 4803, gold 320
+  Q: Suzie and 5 of her friends decide to rent an Airbnb at Lake Tahoe for 4 days from Thursday to Sunday. The rental rate for weekdays is $420 per day. The weekend rental rate is $540 per day. They all decide to split the rental evenly. How much does each person have to pay?
+  A: 'The cost of the rental for Thursday and Friday comes to $420 * 2 = $<|python_start|>420*2<|python_end|><|output_start|>840<|output_end|>840.\nThe cost of the rental for the weekend comes to $540 * 2 = $<|python_start|>540*2<|python_end|><|output_start|>1080<|output_end|>1080.\nEach person has to pay $840 + $1080 = $<|python_start|>840+1080<|python_end|><|output_start|>1920<|output_end|>1920.\n#### 1920'
+--- Wrong: repeated a number from the question | problem 4807, gold 4
+  Q: Johns goes to the gym 3 times a week.  He spends 1 hour each day lifting weight. Additionally, he also spends a third of his weightlifting time warming up and doing cardio each day.  How many hours does he spend at the gym a week?
+  A: 'He spent 60/3=<|python_start|>60/3<|python_end|><|output_start|>20.0<|output_end|>20 minutes warming up\nSo he spent 60+20=<|python_start|>60+20<|python_end|><|output_start|>80<|output_end|>80 minutes at the gym\nThat means he spent 80/60=<|python_start|>80/60<|python_end|><|output_start|>1.3333333333333333<|output_end|>1 hour at the gym\n#### 1'
+--- Wrong: repeated a number from the question | problem 4808, gold 11
+  Q: A family had 10 eggs, but the mother used 5 of them to make an omelet. Then, 2 chickens laid 3 eggs each. How many eggs does the family have now?
+  A: 'The mother used 5 eggs and 2 chickens laid 3 eggs each, so the total number of eggs is 5 + 3 = <|python_start|>5+3<|python_end|><|output_start|>8<|output_end|>8.\nTherefore, the family now has 10 - 8 = <|python_start|>10-8<|python_end|><|output_start|>2<|output_end|>2.\n#### 2'
+--- Wrong: repeated a number from the question | problem 4808, gold 11
+  Q: A family had 10 eggs, but the mother used 5 of them to make an omelet. Then, 2 chickens laid 3 eggs each. How many eggs does the family have now?
+  A: 'The mother used 5 eggs, which made 10 - 5 = <|python_start|>10-5<|python_end|><|output_start|>5<|output_end|>5 eggs.\nAfter the 2 chickens laid 3 eggs each, there were 5 + 3 = <|python_start|>5+3<|python_end|><|output_start|>8<|output_end|>8 eggs.\nThe family now has 10 - 8 = <|python_start|>10-8<|python_end|><|output_start|>2<|output_end|>2 eggs.\n#### 2'
+--- Wrong: final number never computed in the answer | problem 4806, gold 1
+  Q: Ricciana and Margarita joined in their school's long jump event. Ricciana ran and jumped a total of 24 feet -  20 feet for running and 4 feet for jumping. Margarita ran for 18 feet and jumped 1 foot less than twice Ricciana's jump. How much farther did Margarita run and jump than Ricciana?
+  A: "Twice Ricciana's jump is 2 * 4 = <|python_start|>2*4<|python_end|><|output_start|>8<|output_end|>8 feet.\nMargarita ran for 18 - 8 = <|python_start|>18-8<|python_end|><|output_start|>10<|output_end|>10 feet.\nMargarita jumped for 10 - 1 = <|python_start|>10-1<|python_end|><|output_start|>9<|output_end|>9 feet.\nMargarita ran and jumped 9 - 24 = <|python_start|>9-24<|python_end|><|output_start|>-15<|output_end|>-15 feet farther than Ricciana.\n#### 15"
+--- Wrong: final number never computed in the answer | problem 4806, gold 1
+  Q: Ricciana and Margarita joined in their school's long jump event. Ricciana ran and jumped a total of 24 feet -  20 feet for running and 4 feet for jumping. Margarita ran for 18 feet and jumped 1 foot less than twice Ricciana's jump. How much farther did Margarita run and jump than Ricciana?
+  A: "Twice Ricciana's jump is 2 * 4 = <|python_start|>2*4<|python_end|><|output_start|>8<|output_end|>8 feet.\nMargarita ran for 18 - 8 = <|python_start|>18-8<|python_end|><|output_start|>10<|output_end|>10 feet.\nMargarita jumped for 10 - 1 = <|python_start|>10-1<|python_end|><|output_start|>9<|output_end|>9 feet.\nMargarita ran and jumped for 9 - 24 = <|python_start|>9-24<|python_end|><|output_start|>-15<|output_end|>-15 feet farther than Ricciana.\n#### 15"
+--- Wrong: final number never computed in the answer | problem 4806, gold 1
+  Q: Ricciana and Margarita joined in their school's long jump event. Ricciana ran and jumped a total of 24 feet -  20 feet for running and 4 feet for jumping. Margarita ran for 18 feet and jumped 1 foot less than twice Ricciana's jump. How much farther did Margarita run and jump than Ricciana?
+  A: "Twice Ricciana's jump is 2 * 4 = <|python_start|>2*4<|python_end|><|output_start|>8<|output_end|>8 feet.\nMargarita ran for 18 - 8 = <|python_start|>18-8<|python_end|><|output_start|>10<|output_end|>10 feet.\nMargarita jumped for 10 - 1 = <|python_start|>10-1<|python_end|><|output_start|>9<|output_end|>9 feet.\nMargarita ran and jumped 9 - 24 = <|python_start|>9-24<|python_end|><|output_start|>-15<|output_end|>-15 feet farther than Ricciana.\n#### 15"
+--- Wrong: computed the wrong quantity | problem 4800, gold 14000
+  Q: Gary manages two Amazon distribution centers. The first center processes 10000 packages per day, and the second center processes three times that volume. If Amazon makes 5 cents of profit per package, how much profit per week do the two centers make combined?
+  A: 'The second center processes 10000 * 3 = <|python_start|>10000*3<|python_end|><|output_start|>30000<|output_end|>30000 packages.\nThe total number of packages are 10000 + 30000 = <|python_start|>10000+30000<|python_end|><|output_start|>40000<|output_end|>40000.\nIn one week, Amazon makes 40000 * 5 = <|python_start|>40000*5<|python_end|><|output_start|>200000<|output_end|>200000 dollars.\nCombined, the two centers make 200000 * 2 = <|python_start|>200000*2<|python_end|><|output_start|>400000<|output_end|>400000 dollars.\n#### 400000'
+--- Wrong: computed the wrong quantity | problem 4800, gold 14000
+  Q: Gary manages two Amazon distribution centers. The first center processes 10000 packages per day, and the second center processes three times that volume. If Amazon makes 5 cents of profit per package, how much profit per week do the two centers make combined?
+  A: 'The second center processes 10000 * 3 = <|python_start|>10000*3<|python_end|><|output_start|>30000<|output_end|>30000 packages per day.\nThe total number of packages the two centers process in a week is 10000 + 30000 = <|python_start|>10000+30000<|python_end|><|output_start|>40000<|output_end|>40000 packages.\nThus, they make 40000 * 5 = <|python_start|>40000*5<|python_end|><|output_start|>200000<|output_end|>200000 dollars per week.\n#### 200000'
+--- Wrong: computed the wrong quantity | problem 4800, gold 14000
+  Q: Gary manages two Amazon distribution centers. The first center processes 10000 packages per day, and the second center processes three times that volume. If Amazon makes 5 cents of profit per package, how much profit per week do the two centers make combined?
+  A: 'The second center processes 10000 * 3 = <|python_start|>10000*3<|python_end|><|output_start|>30000<|output_end|>30000 packages per day.\nThe total number of packages the two centers process in a day is 10000 + 30000 = <|python_start|>10000+30000<|python_end|><|output_start|>40000<|output_end|>40000 packages.\nAmazon makes 5 cents of profit per package, which is 40000 * 5 = $<|python_start|>40000*5<|python_end|><|output_start|>200000<|output_end|>200000.\nIn one week, the two centers make 40000 * 7 = $<|python_start|>40000*7<|python_end|><|output_start|>280000<|output_end|>280000.\n#### 280000'
