@@ -1,0 +1,111 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{float}
+
+\setlength{\LTcapwidth}{\textwidth}
+
+% Same look as \titleformat{\section}{\large\bfseries}{}{0em}{} from A1, without needing titlesec
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}{1.2em}{0.5em}{\large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}{0.6em}{0.2em}{\normalsize\bfseries}}
+\makeatother
+
+% Column types for the tables
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\graphicspath{{figures/}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{\vspace{-3em}{CSC490 Assignment A4: RL-ing nanochat\vspace{-1em}}}
+
+\author{
+  Prithvi Seran (1009973343) \and
+  Vraj Shah (1009102695) \and
+  Tyseer Toufiq (1009364064) \and
+  Joshua Crisologo (1009860438)
+}
+\date{}
+
+\begin{document}
+
+
+\maketitle
+\vspace{-2.5em}
+\begin{center}
+\small Code, logs and scripts: \url{https://github.com/Vraj2004/nanochat-490}
+\end{center}
+
+\section*{Part 1: GRPO and RL Review}
+
+GRPO \cite{grpo} is a variant of PPO \cite{ppo} that replaces the learned value function with a group baseline. For each question $q$ it samples $G$ outputs from the old policy, scores each with a reward $r_i$, and maximizes
+\begin{equation}
+J_{\text{GRPO}}(\theta) = \frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}
+\Big\{\min\!\big[\rho_{i,t}\hat{A}_i,\ \text{clip}(\rho_{i,t},1-\varepsilon,1+\varepsilon)\,\hat{A}_i\big]
+-\beta\, D_{\text{KL}}\big[\pi_\theta\,\|\,\pi_{\text{ref}}\big]\Big\},
+\label{eq:grpo}
+\end{equation}
+where $\rho_{i,t} = \pi_\theta(o_{i,t}\mid q,o_{i,<t})\,/\,\pi_{\theta_{\text{old}}}(o_{i,t}\mid q,o_{i,<t})$ and $\hat{A}_i = (r_i-\text{mean}(\mathbf{r}))/\text{std}(\mathbf{r})$.
+
+nanochat's \code{scripts/chat\_rl.py} \cite{nanochat} keeps the group sampling and the mean baseline and removes almost everything else. Its docstring puts ``GRPO'' in quotes and calls the result ``more similar to just REINFORCE'' \cite{reinforce}. For each GSM8K \cite{gsm8k} question it samples 16 completions and maximizes
+\begin{equation}
+J_{\text{nanochat}}(\theta) = \frac{1}{N}\sum_{i}\sum_{t} m_{i,t}\,\big(r_i-\text{mean}(\mathbf{r})\big)\,\log\pi_\theta(o_{i,t}\mid q,o_{i,<t}),
+\label{eq:nanochat}
+\end{equation}
+where $m_{i,t}$ is 1 only for tokens the model sampled (0 for the prompt, padding and inserted calculator outputs) and $N$ is the number of such tokens in the forward pass. Table~\ref{tab:grpo} lists the four changes.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{GRPO in DeepSeekMath \cite{grpo} against \code{chat\_rl.py} at its default settings.}\label{tab:grpo}
+\begin{tabular}{L{2.7cm} L{5.6cm} L{6.5cm}}
+\toprule
+\textbf{Component} & \textbf{GRPO} & \textbf{nanochat} \\
+\midrule
+Surrogate & PPO ratio $\rho$ against $\pi_{\theta_{\text{old}}}$, clipped & $\log\pi_\theta$ times the advantage; one optimizer step per 256 fresh rollouts \\
+Trust region & KL penalty to a reference policy, $\beta = 0.04$ & None; the learning rate starts at 5\% of its base value and decays linearly to zero over one epoch (467 steps) \\
+Advantage & Group mean subtracted, then divided by the group std & Group mean subtracted only \\
+Length normalization & Mean over each output's tokens, then mean over outputs & Sum over all sampled tokens, divided by their count \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why Karpathy may have made these changes.} nanochat is meant to be minimal, and each removed piece does little in this setting. Every batch of rollouts is used for one gradient step and then discarded, so $\rho = 1$, the clip is inactive, and the gradient of the clipped term in Eq.~\ref{eq:grpo} is $\hat{A}_i\nabla\log\pi_\theta$, which is REINFORCE with a baseline. The KL penalty costs a frozen copy of the model and an extra forward pass. DAPO \cite{dapo} and Dr.~GRPO \cite{drgrpo} drop it too, and here a small learning rate that decays to zero within one epoch already keeps the policy near the SFT model. Dividing by the std up-weights questions whose samples nearly all agree: with a 0/1 reward, a question with 1 of 16 samples correct gets about twice the weight of one with 8 of 16. Dr.~GRPO calls this a question-level difficulty bias and removes the division as well. Averaging within each output gives each token of a long answer less weight than a token of a short one, and DAPO replaces it with the token-level average that nanochat uses. One limit carries over from GRPO: a question whose 16 samples all get the same reward has zero advantage and adds nothing to the gradient. In our replication (Part 3) that was 46\% of the training questions, which the shaped rewards in Part 4 are aimed at.
+
+% Parts 2-5 go here.
+
+\begin{thebibliography}{99}
+
+\bibitem{nanochat}
+A. Karpathy, ``nanochat: A tiny chatbot arena and training harness,'' GitHub, 2025. \url{https://github.com/karpathy/nanochat/discussions/481}
+
+\bibitem{grpo}
+Z. Shao et al., ``DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models,'' arXiv:2402.03300, 2024.
+
+\bibitem{ppo}
+J. Schulman et al., ``Proximal Policy Optimization Algorithms,'' arXiv:1707.06347, 2017.
+
+\bibitem{reinforce}
+R. J. Williams, ``Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning,'' \textit{Machine Learning}, vol.~8, 1992.
+
+\bibitem{gsm8k}
+K. Cobbe et al., ``Training Verifiers to Solve Math Word Problems,'' arXiv:2110.14168, 2021.
+
+\bibitem{dapo}
+Q. Yu et al., ``DAPO: An Open-Source LLM Reinforcement Learning System at Scale,'' arXiv:2503.14476, 2025.
+
+\bibitem{drgrpo}
+Z. Liu et al., ``Understanding R1-Zero-Like Training: A Critical Perspective,'' arXiv:2503.20783, 2025.
+
+\end{thebibliography}
+
+\end{document}
