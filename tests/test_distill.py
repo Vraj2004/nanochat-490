@@ -9,7 +9,7 @@ import random
 import torch
 
 from nanochat.gpt import GPT, GPTConfig
-from nanochat.distill import tool_calls_to_text, pick_solutions, generated_token_logprobs, align_to_targets
+from nanochat.distill import completion_to_parts, pick_solutions, generated_token_logprobs, align_to_targets
 
 
 def tiny_model(seed=0):
@@ -39,12 +39,18 @@ def student_logprobs(model, sequences, prefix_length, pad_id):
     return logp, targets
 
 
-def test_tool_calls_to_text():
+def test_completion_to_parts():
     completion = ("Weng earns 12/60 = <|python_start|>12/60<|python_end|><|output_start|>0.2<|output_end|>0.2 per minute.\n"
                   "#### 10<|assistant_end|>")
-    assert tool_calls_to_text(completion) == "Weng earns 12/60 = <<12/60=0.2>>0.2 per minute.\n#### 10"
+    assert completion_to_parts(completion) == [
+        {"type": "text", "text": "Weng earns 12/60 = "},
+        {"type": "python", "text": "12/60"},
+        {"type": "python_output", "text": "0.2"},
+        {"type": "text", "text": "0.2 per minute.\n#### 10"},
+    ]
     # a call that was cut off before the engine inserted its output
-    assert tool_calls_to_text("x = <|python_start|>3*4<|python_end|>") == "x = <<3*4>>"
+    assert completion_to_parts("x = <|python_start|>3*4<|python_end|>") == [
+        {"type": "text", "text": "x = "}, {"type": "python", "text": "3*4"}]
 
 
 def test_pick_solutions():

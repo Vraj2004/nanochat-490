@@ -8,7 +8,7 @@ log pi_teacher(x_t) - log pi_student(x_t), with no discounting (Thinking Machine
 Two kinds of teacher are supported:
 - an external teacher: another checkpoint with the same tokenizer, prompted exactly like the student
 - a self-teacher (SDPO, Hubotter et al., 2026): a frozen copy of the student's starting checkpoint,
-  prompted with a correct solution from the same group of samples
+  shown a correct solution from the same group of samples as an earlier turn of the conversation
 """
 
 import re
@@ -19,22 +19,34 @@ import torch
 TOOL_CALL_RE = re.compile(r"<\|python_start\|>(.*?)<\|python_end\|>(?:<\|output_start\|>(.*?)<\|output_end\|>)?", re.S)
 
 
-def tool_calls_to_text(completion):
-    """ Rewrite calculator calls into GSM8K's inline <<expr=result>> notation, so a sampled solution
-    can be quoted inside a user message as plain text (special tokens in user text are not allowed). """
-    def repl(m):
-        expr, result = m.group(1), m.group(2)
-        return f"<<{expr}={result}>>" if result is not None else f"<<{expr}>>"
-    text = TOOL_CALL_RE.sub(repl, completion)
-    return text.replace("<|assistant_end|>", "").strip()
+def completion_to_parts(completion):
+    """ Split a decoded completion into assistant message parts (text / python / python_output), so a sampled
+    solution can be re-rendered with its calculator calls as real tool tokens. """
+    completion = completion.replace("<|assistant_end|>", "")
+    parts, pos = [], 0
+    for m in TOOL_CALL_RE.finditer(completion):
+        if m.start() > pos:
+            parts.append({"type": "text", "text": completion[pos:m.start()]})
+        parts.append({"type": "python", "text": m.group(1)})
+        if m.group(2) is not None:
+            parts.append({"type": "python_output", "text": m.group(2)})
+        pos = m.end()
+    if pos < len(completion):
+        parts.append({"type": "text", "text": completion[pos:]})
+    return parts
 
 
 def self_teacher_conversation(conversation, solution):
-    """ SDPO-style teacher prompt: the original question followed by a correct solution and a request
-    to solve the question again. The assistant message is kept so render_for_completion can drop it. """
+    """ SDPO-style teacher context: the question, a correct solution as an earlier assistant turn (calculator calls
+    kept as tool tokens, so the teacher does not penalize the tool itself), then a request to solve it again.
+    The final assistant message is a placeholder that render_for_completion drops. """
     question = conversation["messages"][0]["content"]
-    prompt = f"{question}\n\nA correct solution to this problem:\n{tool_calls_to_text(solution)}\n\nSolve the problem again."
-    return {"messages": [{"role": "user", "content": prompt}, conversation["messages"][-1]]}
+    return {"messages": [
+        {"role": "user", "content": question},
+        {"role": "assistant", "content": completion_to_parts(solution)},
+        {"role": "user", "content": "That is correct. Solve the same problem again."},
+        conversation["messages"][-1],
+    ]}
 
 
 def pick_solutions(correct, rng):
