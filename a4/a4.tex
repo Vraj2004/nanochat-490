@@ -46,7 +46,7 @@
 \small Code, logs and scripts: \url{https://github.com/Vraj2004/nanochat-490}
 \end{center}
 
-\section*{Part 1}
+\section*{Part 1: GRPO and RL Review}
 
 GRPO \cite{grpo} is a variant of PPO \cite{ppo} that replaces the learned value function with a group baseline. For each question $q$ it samples $G$ outputs from the old policy, scores each with a reward $r_i$, and maximizes
 \begin{equation}
@@ -83,11 +83,11 @@ Length normalization & Mean over each output's tokens, then mean over outputs & 
 
 \textbf{Why Karpathy may have made these changes.} nanochat is meant to be minimal, and each removed piece does little in this setting. Every batch of rollouts is used for one gradient step and then discarded, so $\rho = 1$, the clip is inactive, and the gradient of the clipped term in Eq.~\ref{eq:grpo} is $\hat{A}_i\nabla\log\pi_\theta$, which is REINFORCE with a baseline. The KL penalty costs a frozen copy of the model and an extra forward pass. DAPO \cite{dapo} and Dr.~GRPO \cite{drgrpo} drop it too, and here a small learning rate that decays to zero within one epoch already keeps the policy near the SFT model. Dividing by the std up-weights questions whose samples nearly all agree: with a 0/1 reward, a question with 1 of 16 samples correct gets about twice the weight of one with 8 of 16. Dr.~GRPO calls this a question-level difficulty bias and removes the division as well. Averaging within each output gives each token of a long answer less weight than a token of a short one, and DAPO replaces it with the token-level average that nanochat uses. One limit carries over from GRPO: a question whose 16 samples all get the same reward has zero advantage and adds nothing to the gradient. In our replication (Part 3) that was 46\% of the training questions, which the shaped rewards in Part 4 are aimed at.
 
-\section*{Part 2}
+\section*{Part 2: SFT and Midtraining}
 
 \subsection*{Setup}
 
-We start from our final A3 model, \code{d20\_final\_v2}: depth 20, 897M parameters, partial RoPE on half of each head's dimensions, 5.2B pretraining tokens, CORE 0.242 and validation bpb 0.737. We chose our own model for two reasons. First, A4 then continues the model we built and evaluated in A3, so we can see how it behaves after SFT and RL. Second, it is the stronger base: CORE 0.242 vs 0.222 for the baseline d20. The cost of this choice is that our Part 3 results are not a like-for-like comparison with Karpathy's, which we discuss there. In the July 2026 nanochat, midtraining no longer exists as a separate script: \code{scripts/mid\_train.py} was deleted on January 31, 2026 (commit \code{1ddaad1}) and its data was folded into \code{scripts/chat\_sft.py}, which now runs one stage from the base model. We confirmed on Piazza that this one script covers both SFT and midtraining. Its default mixture is one pass over 790K rows:
+We start from our final A3 model, \code{d20\_final\_v2}: depth 20, 897M parameters, partial RoPE on half of each head's dimensions, 5.2B pretraining tokens, CORE 0.242 and validation bpb 0.737. We chose our own model for two reasons. First, A4 then continues the model we built and evaluated in A3, so we can see how it behaves after SFT and RL. Second, it scored slightly higher than the full-RoPE d20 baseline (CORE 0.242 vs 0.235), although in A3 that gap was within seed noise. The cost of this choice is that our Part 3 results are not a like-for-like comparison with Karpathy's, which we discuss there. In the July 2026 nanochat, midtraining no longer exists as a separate script: \code{scripts/mid\_train.py} was deleted on January 31, 2026 (commit \code{1ddaad1}) and its data was folded into \code{scripts/chat\_sft.py}, which now runs one stage from the base model. We confirmed on Piazza that this one script covers both SFT and midtraining. Its default mixture is one pass over 790K rows:
 \begin{itemize}[nosep]
   \item SmolTalk \cite{smoltalk} (460K general conversations),
   \item the MMLU auxiliary training set \cite{mmlu}, three times (300K multiple-choice questions),
@@ -123,9 +123,9 @@ SFT + OpenMathInstruct-2 & \textbf{59.3} & \textbf{46.9} & 34.7 & \textbf{24.3 $
 \end{tabular}
 \end{table}
 
-From our Figure 1 and Table 2 we conclude that SFT teaches the chat format rather than new knowledge. The base model scores at chance on the chat evaluation (25\% on four-way multiple choice) and 0\% on GSM8K and HumanEval. This is because the model has never seen the chat special tokens (ex. $<|$user\_start$|>$) or the \ans\ answer format that the GSM8K grader reads, so it does not know where to put an answer. The knowledge is already there, since its CORE is 0.242 and after only 200 SFT steps ARC-Easy is already at 53\%. After SFT the model reaches 58\% on ARC-Easy, 46\% on ARC-Challenge and 34\% on MMLU, with validation bpb on the chat data falling from 0.466 to 0.287.
+Figure~\ref{fig:part2} and Table~\ref{tab:part2} show that SFT mostly teaches the chat format, not new knowledge. The base model scores at chance on the chat evaluation (25\% on four-way multiple choice) and 0\% on GSM8K and HumanEval. The model has never seen the chat special tokens (e.g.\ \code{<|user\_start|>}) or the \ans\ answer format that the GSM8K grader reads, so it does not know where to put an answer. The knowledge is already there, since its CORE is 0.242 and after only 200 SFT steps ARC-Easy is already at 53\%. After SFT the model reaches 58\% on ARC-Easy, 46\% on ARC-Challenge and 34\% on MMLU, with validation bpb on the chat data falling from 0.466 to 0.287.
 
-We also observe that the default mixture barely teaches GSM8K, as our SFT model solves 1.0\% of GSM8K, against 4.6\% for Karpathy's original SFT model \cite{nanochatpost}. Part 3 shows that this is mostly a formatting failure: the model often does not end with the \ans\ line that the grader reads.
+The default mixture barely teaches GSM8K: our SFT model solves 1.0\% of GSM8K, against 4.6\% for Karpathy's original SFT model \cite{nanochatpost}. Part 3 shows that this is mostly a formatting failure: the model often does not end with the \ans\ line that the grader reads.
 
 \subsection*{Additional datasets}
 
@@ -136,11 +136,11 @@ The goal of A4 is GSM8K, so we added grade-school math with step-by-step solutio
 \end{itemize}
 Both are derived from the training sets, not the test set, so they do not leak GSM8K test problems. In terms of answer format, MetaMathQA's trailing ``The answer is:'' line is removed, and OpenMathInstruct-2's \code{expected\_answer} is appended after its boxed answer and we converted both to end in \ans\ which is the format the GSM8K grader reads. In samples of 3,000 rows, 3,000 (MetaMathQA) and 2,999 (OpenMathInstruct-2) end in a parseable \ans. To compare the data rather than the amount, each run adds exactly 150K rows (\code{-{}-extra-data}, \code{-{}-extra-rows} in \code{chat\_sft.py}). Everything else is identical to the original run, including the validation set.
 
-Running SFT with each dataset separately led to a conclusion that the math data we targeted ended up being is the largest improvement. From Figure 1, GSM8K rises from 1.0\% to 15.3\% with MetaMathQA and to 24.3\% with OpenMathInstruct-2, both outside the confidence intervals. The other tasks move by at most 1.8 points (3 of 164 HumanEval problems) so extra math does not cost general ability. Validation bpb is identical (0.287) because the validation set is mostly general conversation, so bpb does not measure math ability.
+The targeted math data gave the largest improvement. GSM8K rises from 1.0\% to 15.3\% with MetaMathQA and to 24.3\% with OpenMathInstruct-2, both outside the confidence intervals. The other tasks move by at most 1.8 points (3 of 164 HumanEval problems), so extra math does not cost general ability. Validation bpb is identical (0.287) because the validation set is mostly general conversation, so bpb does not measure math ability.
 
-We also conclude that the data source/quality matters rather than only the amount. From Table 2, with the same number of rows, OpenMathInstruct-2 beats MetaMathQA by 9 point on GSM8K. MetaMathQA rewrites the same 7.5K training problems with a differnet model, while OpenMathInstruct-2 adds new problems with solutions from a much stronger model, so it gives more variety per row. Though the extra rows also add 6--7\% more steps (496--499 vs 466), so each data change comes with slightly more compute.
+The source of the data matters as well as the amount. With the same number of rows, OpenMathInstruct-2 beats MetaMathQA by 9 points on GSM8K. MetaMathQA rewrites the same 7.5K training problems with a different model, while OpenMathInstruct-2 adds new problems with solutions from a much stronger model, so it gives more variety per row. The extra rows also add 6--7\% more steps (496--499 vs 466), so each data change comes with slightly more compute.
 
-\section*{Part 3}
+\section*{Part 3: Replicating the RL Run}
 
 \subsection*{Setup}
 
@@ -171,11 +171,11 @@ Ours & 1.0\% & \textbf{13.7\% $\pm$ 1.9} & 0.5 $\rightarrow$ 12.5\% & 5.5 $\righ
 \end{tabular}
 \end{table}
 
-The first difference is that we start lower but gain far more with most being gained almost immediately. Our reward rises from 0.01 to about 0.25 within 12 steps and then plateaus, while Karpathy's climbs slowly from 0.02 to about 0.06 over the whole run. There is similar behaviour for pass@1, where it is at 0.5\% at step 0, 9.8\% at step 60, and between 11\% and 14\% from step 120 on.
+We start lower than Karpathy but gain far more, and most of the gain comes almost immediately. Our reward rises from 0.01 to about 0.25 within 12 steps and then plateaus, while Karpathy's climbs slowly from 0.02 to about 0.06 over the whole run. Pass@1 behaves the same way: 0.5\% at step 0, 9.8\% at step 60, and between 11\% and 14\% from step 120 on.
 
-We can also see that the early jump is actually format learning. This is because at step 0, only 38\% of our samples contain \code{\#\#\#\#}; by step 9 it is 84\%, and the logged sequence length (prompt plus answer) falls from 260 to about 140 tokens. Our SFT model often had the arithmetic right but did not finish with the answer line, which the exact-match reward scores as 0. RL fixes this within a few steps because it is the easiest way to raise the reward. Karpathy's SFT model, with its separate midtraining stage, probably already used the format, so his curve shows only the slower improvement in actual math.
+The early jump is format learning. At step 0, only 38\% of our samples contain \code{\#\#\#\#}; by step 9 it is 84\%, and the logged sequence length (prompt plus answer) falls from 260 to about 140 tokens. Our SFT model often had the arithmetic right but did not finish with the answer line, which the exact-match reward scores as 0. RL fixes this within a few steps because it is the easiest way to raise the reward. Karpathy's SFT model, with its separate midtraining stage, probably already used the format, so his curve shows only the slower improvement in actual math.
 
-Some other differences include how our pipeline has one SFT stage with a different mixture instead of midtraining followed by SFT, and our base model was pretrained on 5.2B tokens against Karpathy's 11.2B (20 per parameter). In both runs pass@8 is far above pass@1, so the model can often solve a problem without solving it reliably, which suggests room for more RL.
+Two other differences may contribute: our pipeline has one SFT stage with a different mixture instead of midtraining followed by SFT, and our base model was pretrained on 5.2B tokens against Karpathy's 11.2B (20 per parameter). In both runs pass@8 is far above pass@1, so the model can often solve a problem without solving it reliably, which suggests room for more RL.
 
 \subsection*{Which problems the model gets right and wrong}
 
@@ -209,9 +209,9 @@ Right number, wrong format (e.g.\ 16.0 for 16) & 22 answers & & \\
   \label{fig:part3cats}
 \end{figure}
 
-After clustering and conducting an EDA, one pattern we see is that reasoning is actually the bottlenect rather than arithmetic. The calculator tool does the arithmetic, so almost every wrong answer computes something correctly, just the wrong thing: 41.5\% compute the wrong quantity and 8.1\% stop one step early on an intermediate value of the reference solution.
+\textbf{Reasoning, not arithmetic, is the bottleneck.} The calculator tool does the arithmetic, so almost every wrong answer computes something correctly, just the wrong thing: 41.5\% compute the wrong quantity and 8.1\% stop one step early on an intermediate value of the reference solution.
 
-We can also see that around one in five answers end mid-solution, and RL barely fixes it. These answers have a median length of 44 tokens and stop partway through a sentence or expression, for example ``The money she earns from one painting is 3 paintings * \$50''. Their share only falls from 22.9\% to 19.3\% over training.
+\textbf{About one in five answers ends mid-solution, and RL barely fixes it.} These answers have a median length of 44 tokens and stop partway through a sentence or expression, for example ``The money she earns from one painting is 3 paintings * \$50''. Their share only falls from 22.9\% to 19.3\% over training.
 
 \begin{figure}[H]
   \centering
@@ -220,11 +220,11 @@ We can also see that around one in five answers end mid-solution, and RL barely 
   \label{fig:part3diff}
 \end{figure}
 
-We also conclude that difficulty is determined by solution length. We group problems by the number of calculator calls in their reference solution and by keyword-based topic. The solve rate falls from 41\% for two-step problems to 2\% for problems with six or more steps. RL improves two-step problems the most (33\% to 46\%) and barely changes problems with four or more steps. Percent problems are the hardest topic (16\%) and simple counting problems the easiest (31\%).
+\textbf{Difficulty tracks solution length.} We group problems by the number of calculator calls in their reference solution and by keyword-based topic. The solve rate falls from 41\% for two-step problems to 2\% for problems with six or more steps. RL improves two-step problems the most (33\% to 46\%) and barely changes problems with four or more steps. Percent problems are the hardest topic (16\%) and simple counting problems the easiest (31\%).
 
-Further looking into the data, we also can see that half the problems did not really teach the model anything. 43.1\% of problems were never solved by any of their 16 samples and 3.1\% were always solved. In both cases every sample gets the same reward, so the advantage is zero and the problem contributes no gradient (Part 1). For 46\% of the training set the reward gave no learning signal, which is why the gains concentrate on problems the model could already sometimes solve.
+\textbf{Almost half the problems gave no learning signal.} 43.1\% of problems were never solved by any of their 16 samples and 3.1\% were always solved. In both cases every sample gets the same reward, so the advantage is zero and the problem contributes no gradient (Part 1). For 46\% of the training set the reward gave no learning signal, which is why the gains concentrate on problems the model could already sometimes solve.
 
-\section*{Part 4}
+\section*{Part 4: A More Complex Reward System}
 
 \subsection*{Reward design}
 
@@ -283,7 +283,7 @@ SFT (start) & 1.0\% & 0.5\% & 5.5\% & -- & -- & -- \\
   \label{fig:part4curves}
 \end{figure}
 
-\textbf{On the test set, the differences are within noise.} The combined reward is best on every metric, at 15.0\% on GSM8K against 13.7\% for the original, with pass@8 at 39\% against 35\%. With one run per reward and a $\pm$1.9-point interval on 1,319 problems, however, a 1.3-point difference is not significant. Each bonus alone ends within 1.2 points of the original.
+\textbf{On the test set, the differences are within noise.} The combined reward is best on every metric, at 15.0\% on GSM8K against 13.7\% for the original, with pass@8 at 39\% against 35\%. With one run per reward and a $\pm$1.9-point interval on 1,319 problems, however, a 1.4-point difference is not significant. Each bonus alone ends within 1.2 points of the original.
 
 \textbf{Compared problem by problem, all three new rewards help.} Because the runs see the same problems at the same steps, we can compare each problem's solve rate (fraction of 16 samples correct) with run \#1's on the same problem. This test is much more sensitive than the test set (Table~\ref{tab:paired}). Every difference is positive with a 95\% interval that excludes zero, and the combined reward gains 2.0 points overall and 3.3 points late in training. The test accounts for sampling noise but not for variation between training runs, since we have one run per reward.
 
@@ -299,6 +299,22 @@ SFT (start) & 1.0\% & 0.5\% & 5.5\% & -- & -- & -- \\
 \#3 + finish & +0.8 $\pm$ 0.5 & +1.3 $\pm$ 1.1 \\
 \#4 + partial & +1.8 $\pm$ 0.5 & +2.7 $\pm$ 1.1 \\
 \#2 + both & \textbf{+2.0 $\pm$ 0.5} & \textbf{+3.3 $\pm$ 1.1} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Summary of the impact of each change, from Tables~\ref{tab:part4} and~\ref{tab:paired}. Test differences are against run \#1; paired gains are per-problem training solve rate, all steps.}\label{tab:part4summary}
+\begin{tabular}{L{2.6cm} c c L{8.2cm}}
+\toprule
+\textbf{Run} & \textbf{Test vs \#1} & \textbf{Paired gain} & \textbf{Impact} \\
+\midrule
+\#3 + finish & $-$0.1 & +0.8 & Fewer answers end mid-solution (19\% to 14\%), but the extra finished answers are mostly wrong. \\
+\#4 + partial & $-$1.1 & +1.8 & Fewer wrong-quantity answers (40\% to 33\%) and more problems solved at least once, but slightly more unfinished answers. \\
+\#2 + both & +1.4 & +2.0 & Keeps both effects: the most correct training answers and half as many answers without \code{\#\#\#\#}. Best test score, but within the $\pm$1.9 interval. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -319,13 +335,13 @@ SFT (start) & 1.0\% & 0.5\% & 5.5\% & -- & -- & -- \\
   \label{fig:part4mistakes}
 \end{figure}
 
-From our figures we can see that the finish bonus changes how answers end instead of if they are right. With the finish bonus, answers that end mid-solution fall from 19\% to 14\%, and final numbers that were never computed fall from 3.3\% to 1.1\%. 79\% of answers now end on their own result, against 69\% for run \#1. Most of the answers that now finish are wrong, however: ``computed the wrong quantity'' rises from 40\% to 46\%. This means that the model completes its work more often, but completing it does not make the reasoning right.
+\textbf{The finish bonus changes how answers end more than whether they are right.} With the finish bonus, answers that end mid-solution fall from 19\% to 14\%, and final numbers that were never computed fall from 3.3\% to 1.1\%. 79\% of answers now end on their own result, against 69\% for run \#1. Most of the answers that now finish are wrong, however: ``computed the wrong quantity'' rises from 40\% to 46\%. The model completes its work more often, but that does not make the reasoning right.
 
-However, we can also see that partial credit improves reasoning. It reduces ``computed the wrong quantity'' from 40\% to 33\% and also raises the share of problems solved at least once from 57\% to 61\%. However, there are slightly more answers that end mid-solution (22\%) and more final numbers that were never computed (5.8\%). This means that the model is rewarded for correct intermediate steps even when it then writes a final number it did not compute.
+\textbf{Partial credit improves reasoning.} It reduces ``computed the wrong quantity'' from 40\% to 33\% and also raises the share of problems solved at least once from 57\% to 61\%. On the other hand, slightly more answers end mid-solution (22\%) and more final numbers that were never computed (5.8\%). The model is rewarded for correct intermediate steps even when it then writes a final number it did not compute.
 
-Lastly, we cana see that combining both our proposed additional rewards keeps both of their benefits. The combined run has the most correct answers (29\%) and the fewest answers without a final line (10\%, half of run \#1). A slightly larger part of its answers stop one step early (9.1\% vs 7.7\%), which is consistent with partial credit rewarding intermediate values.
+\textbf{Combining the two rewards keeps both benefits.} The combined run has the most correct answers (29\%) and the fewest answers without a final line (10\%, half of run \#1). A slightly larger part of its answers stop one step early (9.1\% vs 7.7\%), which is consistent with partial credit rewarding intermediate values.
 
-We also found no sign of reward hacking. One way to exploit partial credit would be to make many calculator calls in the hope of hitting reference values. The number of calls per answer stays between 2.5 and 2.8 in every run, against 2.5 for run \#1.
+\textbf{We found no sign of reward hacking.} One way to exploit partial credit would be to make many calculator calls in the hope of hitting reference values. The number of calls per answer stays between 2.5 and 2.8 in every run, against 2.5 for run \#1.
 
 \subsection*{Discussion}
 
@@ -335,7 +351,7 @@ Both shaped rewards changed the behavior they target, gave a learning signal on 
   \item RL can only reinforce answers the model sometimes produces, and our 0.9B model rarely solves problems with four or more steps.
   \item One pass over 7.5K problems is short.
 \end{itemize}
-This makes sense given Part 2's results where changing the SFT data raised GSM8K by up to 23 points, while changing the RL reward raised it by at most 1.3. Next steps can be a second seed for runs \#1 and \#2, more than one epoch, and RL from the stronger OpenMathInstruct-2 SFT model.
+This makes sense given Part 2's results where changing the SFT data raised GSM8K by up to 23 points, while changing the RL reward raised it by at most 1.4. Next steps can be a second seed for runs \#1 and \#2, more than one epoch, and RL from the stronger OpenMathInstruct-2 SFT model.
 
 % Part 5 goes here.
 
