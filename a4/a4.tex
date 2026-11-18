@@ -353,7 +353,37 @@ Both shaped rewards changed the behavior they target, gave a learning signal on 
 \end{itemize}
 This fits Part 2, where changing the SFT data raised GSM8K by up to 23 points; changing the RL reward raised it by at most 1.4. Next steps would be a second seed for runs \#1 and \#2, more than one epoch, and RL from the stronger OpenMathInstruct-2 SFT model.
 
-% Part 5 goes here.
+\section*{Part 5: On-Policy Distillation}
+
+\subsection*{Method}
+
+We use on-policy distillation \cite{opd}. The student samples its own answers, exactly as in RL, and a fixed teacher scores every sampled token. The per-token advantage is
+\begin{equation}
+A_t = \log\pi_{\text{teacher}}(o_t\mid q,o_{<t}) - \log\pi_\theta(o_t\mid q,o_{<t}),
+\label{eq:opd}
+\end{equation}
+a one-sample estimate of the negative reverse KL, with no discounting. We plug $A_t$ into the objective of Eq.~\ref{eq:nanochat} in place of $r_i-\text{mean}(\mathbf{r})$, so the update is the same token-level policy gradient as in Parts 3 and 4, and only the advantage changes (\code{-{}-distill} in \code{scripts/chat\_rl.py}; helpers in \code{nanochat/distill.py}). The student is the nanochat-mixture SFT model from Part 2 (1.0\% on GSM8K), the model every RL run started from. The teacher is the OpenMathInstruct-2 SFT model from Part 2 (24.3\%). It has the same architecture and tokenizer, which on-policy distillation needs because the teacher must score the student's exact tokens. Every other setting is the RL default from Part 3: one epoch of 467 steps, 16 questions $\times$ 16 samples per step, temperature 1.0, at most 256 new tokens, the same learning rate and schedule, and the same pass@$k$ evaluation every 60 steps. The rollouts are logged in the same format, so the Part 3 error categories apply unchanged.
+
+We chose an external teacher over SDPO's self-teacher \cite{sdpo} for the main run. SDPO conditions the model itself on a correct solution and distills that back, which relies on the model learning from a solution placed in its prompt; Hübotter et al.\ find that it does worse than GRPO on Qwen2.5-1.5B and that the benefit grows with scale. Our model has 0.9B parameters, so we test SDPO as an ablation instead.
+
+The SFT and RL checkpoints from Parts 2--4 were on a different Modal workspace, so we re-ran the three SFT runs on ours with identical settings (fresh optimizer, same data and seed) and check that their GSM8K scores match Part 2 before using them.
+
+\subsection*{Hypothesis (committed before running)}
+
+Part 3 showed that 46\% of training problems give RL no gradient, because all 16 samples get the same reward. Distillation gives a learning signal on every sampled token, including on the 43\% of problems the model never solves, and the teacher solves a quarter of the test set. We therefore expect:
+\begin{enumerate}[nosep]
+  \item \textbf{Accuracy.} The distilled student will beat our best RL run (\#2, 15.0\% on GSM8K) and finish between it and the teacher, at about 17--24\%. It will also beat RL on pass@1 and pass@8 at every evaluation after step 60.
+  \item \textbf{Mistakes.} RL mainly fixed the answer format (Part 3). Distillation should also reduce ``computed the wrong quantity'', the largest error category, because the teacher scores every reasoning step, not only the final answer.
+  \item \textbf{No forgetting.} The teacher is a general chat model, so ARC and MMLU will stay within 2 points of the starting SFT model.
+\end{enumerate}
+We run three ablations, each stopped at step 240 with the full run's learning-rate schedule, and compare them with the main run's step-240 checkpoint and with the RL runs at step 240:
+\begin{enumerate}[nosep,resume]
+  \item \textbf{Weaker teacher} (MetaMathQA SFT model, 15.3\%): the student will gain less, so the student's accuracy depends on the teacher's.
+  \item \textbf{Teacher plus reward} ($A_t = 0.5\,(r_i-\text{mean}(\mathbf{r})) + 0.5\,(\log\pi_{\text{teacher}}-\log\pi_\theta)$): little or no gain over distillation alone, because the reward is zero for most samples.
+  \item \textbf{SDPO self-teacher} (a frozen copy of the starting model, shown a correct sample from the same group): the weakest of the three, close to RL \#1, because a 0.9B model gains little from a solution in its prompt and there is no signal on problems where no sample is correct.
+\end{enumerate}
+
+% Part 5 results go here.
 
 \begin{thebibliography}{99}
 
@@ -392,6 +422,12 @@ L. Yu et al., ``MetaMath: Bootstrap Your Own Mathematical Questions for Large La
 
 \bibitem{openmath2}
 S. Toshniwal et al., ``OpenMathInstruct-2: Accelerating AI for Math with Massive Open-Source Instruction Data,'' arXiv:2410.01560, 2024.
+
+\bibitem{opd}
+Thinking Machines Lab, ``On-Policy Distillation,'' blog post, 2025. \url{https://thinkingmachines.ai/blog/on-policy-distillation}
+
+\bibitem{sdpo}
+J. H\"ubotter et al., ``Reinforcement Learning via Self-Distillation,'' arXiv:2601.20802, 2026.
 
 \end{thebibliography}
 

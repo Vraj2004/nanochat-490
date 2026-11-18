@@ -31,6 +31,12 @@ One-time setup on your machine:
     modal run --detach modal_train.py::chat --script chat_rl --log-name d20_rl --args "--model-tag=d20_final_v2 --run=d20_rl"
     modal run --detach modal_train.py::chat --script chat_eval --log-name d20_rl_eval --args "-i rl -g d20_final_v2 -a GSM8K"
 
+5) A4 Part 5: on-policy distillation reuses chat_rl.py. --distill=teacher scores the student's samples with
+   another checkpoint; --distill=self is SDPO's self-teacher; --stop-at-step ends an ablation early on the
+   full run's LR schedule:
+    modal run --detach modal_train.py::chat --script chat_rl --log-name p5_opd --args "--model-tag=d20_sft_mix --distill=teacher --teacher-tag=d20_sft_omi --output-tag=p5_opd --run=p5_opd"
+    modal run --detach modal_train.py::chat --script chat_rl --log-name p5_sdpo --args "--model-tag=d20_sft_mix --distill=self --stop-at-step=240 --output-tag=p5_sdpo --run=p5_sdpo"
+
 To see why Flash Attention 3 fails to load (uses 1 GPU briefly):
     modal run modal_train.py::check_fa3
 
