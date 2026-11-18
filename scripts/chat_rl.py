@@ -57,6 +57,7 @@ parser.add_argument("--reward-weight", type=float, default=None, help="lambda in
 # Training horizon
 parser.add_argument("--num-epochs", type=int, default=1, help="number of epochs over GSM8K")
 parser.add_argument("--stop-at-step", type=int, default=-1, help="save and stop at this step, keeping the full run's LR schedule (-1 = run to the end)")
+parser.add_argument("--train-end-token", type=int, default=-1, help="1 = train on the <|assistant_end|> that ended each sample, which the sampler drops (default: 1 with distillation, 0 without, as in the Part 3-4 RL runs)")
 # Batch sizes / sampling
 parser.add_argument("--device-batch-size", type=int, default=8, help="max batch size per forward pass")
 parser.add_argument("--examples-per-step", type=int, default=16, help="total examples per optimization step across all ranks")
@@ -78,6 +79,8 @@ parser.add_argument("--save-every", type=int, default=60, help="save checkpoint 
 args = parser.parse_args()
 if args.reward_weight is None:
     args.reward_weight = 1.0 if args.distill == "none" else 0.0
+if args.train_end_token == -1:
+    args.train_end_token = int(args.distill != "none")
 assert args.distill != "none" or args.reward_weight == 1.0, "--reward-weight < 1 needs a teacher (--distill)"
 assert args.distill != "teacher" or args.teacher_tag, "--distill=teacher needs --teacher-tag"
 user_config = vars(args).copy()
@@ -121,7 +124,7 @@ print0(f"Calculated number of steps: {num_steps}")
 
 @torch.no_grad()
 def get_batch():
-    assistant_end = tokenizer.encode_special("<|assistant_end|>") # ok to use this token, it's only for padding and isn't used in the loss.
+    assistant_end = tokenizer.encode_special("<|assistant_end|>") # used for padding (mask 0, not in the loss) and, with --train-end-token, as the trained stop token
     rank_indices = range(ddp_rank, len(train_task), ddp_world_size) # each rank is responsible for different examples in the training data
     for example_idx in itertools.cycle(rank_indices):
 
@@ -166,6 +169,15 @@ def get_batch():
             rewards.append(reward)
             terms.append(train_task.reward_terms(conversation, generated_text))
         correct, finish, matched = (list(x) for x in zip(*terms))
+
+        # Engine.generate_batch drops the token that ended each sample, so by default the decision to stop is never
+        # trained. With distillation that lets the student escape the (on average negative) per-token advantage by
+        # ending early, so put <|assistant_end|> back, as a sampled token, for every sample that stopped by itself.
+        if args.train_end_token:
+            for seq, mask in zip(generated_token_sequences, masks):
+                if len(seq) - prefix_length < args.max_new_tokens:
+                    seq.append(assistant_end)
+                    mask.append(1)
 
         # Teacher log-probs of every generated token (Part 5). distill_mask is 0 for samples with no teacher signal.
         max_length = max(len(seq) for seq in generated_token_sequences)
