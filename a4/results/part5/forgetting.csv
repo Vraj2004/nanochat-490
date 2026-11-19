@@ -1,0 +1,4 @@
+model,ARC-Easy,ARC-Challenge,MMLU,GSM8K,HumanEval,ChatCORE
+"Student (SFT, nanochat mixture)",57.91,47.18,34.99,1.9,12.2,0.2017
+"OPD main, step 466",57.41,45.73,35.02,1.82,7.93,0.1879
+"Teacher (SFT + OpenMathInstruct-2, Part 2)",59.34,46.93,34.65,24.34,12.8,0.2501

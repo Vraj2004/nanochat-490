@@ -21,10 +21,10 @@ Or upload the folder to Overleaf. Figures are in `figures/` and are made by the 
 | `scripts/chat_rl.py` | logs every rollout to `chatrl_rollouts/<tag>/rank*.jsonl`; `--env` selects the training reward, `--output-tag`; correctness logged separately from the shaped reward |
 | `tasks/gsm8k.py` | `GSM8KShaped`: correctness plus the finish bonus and partial credit (Part 4) |
 | `modal_train.py` | `chat` entrypoint that runs `chat_sft`, `chat_rl` or `chat_eval` on Modal |
-| `scripts/chat_rl.py` (Part 5) | `--distill teacher\|self`, `--teacher-tag`, `--reward-weight` and `--stop-at-step` for on-policy distillation; reverse KL logged to W&B |
+| `scripts/chat_rl.py` (Part 5) | `--distill teacher\|self`, `--teacher-tag`, `--reward-weight`, `--train-end-token` (trains the stop token) and `--stop-at-step` for on-policy distillation; reverse KL logged to W&B |
 | `nanochat/distill.py`, `tests/test_distill.py` | teacher log-probs aligned to the student's tokens, the SDPO self-teacher prompt, and CPU tests for both |
 
-All runs use the default settings otherwise, on 8x H100 (`modal run --detach modal_train.py::chat --script <script> --log-name <name> --args "..."`; the commands are in the `modal_train.py` docstring).
+All runs use the default settings otherwise, on 8 GPUs requested as H100s (Modal sometimes assigns H200s instead; the SFT logs show H200s) (`modal run --detach modal_train.py::chat --script <script> --log-name <name> --args "..."`; the commands are in the `modal_train.py` docstring).
 
 ## Where each result comes from
 
@@ -35,8 +35,8 @@ All runs use the default settings otherwise, on 8x H100 (`modal run --detach mod
 | 3 | `scripts/part3_plots.py` | the CSVs above, `results/part3/karpathy_rl_digitized.csv` | `figures/part3_{curves,categories,difficulty}.pdf` |
 | 4 | `scripts/part4_compare.py` | `results/part4/rollouts/`, `results/part4/logs/`, the Part 3 rollouts | `results/part4/{results_table,paired_vs_original,categories_by_run,behavior_by_step,passk_by_run}.csv` |
 | 4 | `scripts/part4_plots.py` | the CSVs above | `figures/part4_{curves,behavior,mistakes}.pdf` |
-| 5 | `scripts/part5_compare.py` | `results/part5/rollouts/`, `results/part5/logs/`, the Part 3 and 4 rollouts and logs | `results/part5/{sft_repro,results_table,ablations_step240,paired_vs_rl1,categories,forgetting,curves}.csv` |
-| 5 | `scripts/part5_plots.py` | the CSVs above | `figures/part5_{curves,mistakes}.pdf` |
+| 5 | `scripts/part5_compare.py` | `results/part5/rollouts/`, `results/part5/logs/`, the Part 3 and 4 rollouts and logs | `results/part5/{sft_repro,summary,paired_vs_rl1,categories,style,forgetting,curves}.csv` |
+| 5 | `scripts/part5_plots.py` | the CSVs above | `figures/part5_{curves,style,mistakes}.pdf` |
 
 Run them from the repository root. The plotting scripts only need matplotlib:
 
@@ -61,3 +61,12 @@ Entity `vraj-shah2121-university-of-toronto` on the CoreWeave W&B instance.
 | RL #2, finish + partial | `nanochat-rl` | `2i9jo316` |
 | RL #3, finish | `nanochat-rl` | `p0ktopcl` |
 | RL #4, partial | `nanochat-rl` | `qa8692ci` |
+| Part 5: SFT re-run, nanochat mixture (student) | `nanochat-sft` | `zxk9kbcv` |
+| Part 5: SFT re-run + OpenMathInstruct-2 (teacher) | `nanochat-sft` | `bju449yt` |
+| Part 5: SFT re-run + MetaMathQA (weaker teacher) | `nanochat-sft` | `24qrbh2d` |
+| Part 5: OPD, OMI-2 teacher (main, with stop token) | `nanochat-rl` | `xupx0een` |
+| Part 5: OPD + reward (lambda = 0.5), to step 240 | `nanochat-rl` | `2b2s2uc3` |
+| Part 5: OPD, MetaMathQA teacher, to step 240 | `nanochat-rl` | `8oip5a90` |
+| Part 5: OPD, no stop token | `nanochat-rl` | `idvo1qs8` |
+| Part 5: OPD + reward, no stop token | `nanochat-rl` | `huxij0pc` |
+| Part 5: SDPO self-teacher, no stop token | `nanochat-rl` | `h6lcydf7` |

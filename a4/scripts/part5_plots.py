@@ -95,7 +95,7 @@ for run, label, color, ls in RUNS:
         axes[3].plot([int(r["step"]) for r in kl], [float(r["value2"]) for r in kl], **kw)
 for ax, title, xlabel in ((axes[0], "GSM8K pass@1 (%)", "step"), (axes[1], "GSM8K pass@8 (%)", "step"),
                           (axes[2], "Correct training samples (%)", "step (bins of 20)"),
-                          (axes[3], "Reverse KL to teacher (nats/token)", "step (bins of 20)")):
+                          (axes[3], "Reverse KL (nats/token)", "step (bins of 20)")):
     style(ax, title, xlabel)
 fig.legend(*axes[0].get_legend_handles_labels(), loc="upper center", ncol=4, frameon=False, fontsize=7)
 fig.tight_layout()
@@ -106,12 +106,12 @@ save(fig, "part5_curves.pdf")
 by_run = defaultdict(list)
 for r in read("style.csv"):
     by_run[r["run"]].append(r)
-style_runs = [r for r in RUNS if r[0] in ("RL #1 correctness", "OPD, OMI-2 teacher (main)", "OPD + reward (lambda = 0.5)",
+style_runs = [r for r in RUNS if r[0] in ("RL #1 correctness", "OPD, OMI-2 teacher (main)", "OPD + reward (lambda = 0.5)", "OPD, MetaMathQA teacher",
                                           "SDPO self-teacher", "OPD, OMI-2 teacher [no stop token]", "SDPO self-teacher [no stop token]")]
-plot_panels(by_run, [("calculator_pct", "Uses the calculator (%)", "step (bins of 20)"),
-                     ("answer_line_pct", "Writes a \"#### N\" line (%)", "step (bins of 20)"),
-                     ("verbose_opener_pct", "Opens \"Let's break...\"/\"To...\" (%)", "step (bins of 20)"),
-                     ("median_chars", "Median answer length (chars)", "step (bins of 20)")],
+plot_panels(by_run, [("calculator_pct", "Calculator use (%)", "step (bins of 20)"),
+                     ("answer_line_pct", "Has a #### N line (%)", "step (bins of 20)"),
+                     ("verbose_opener_pct", "Verbose opener (%)", "step (bins of 20)"),
+                     ("median_chars", "Median length (chars)", "step (bins of 20)")],
             "part5_style.pdf", style_runs)
 
 # 3) Answer categories at steps 120-240 (same groups and colors as part4_mistakes.pdf)

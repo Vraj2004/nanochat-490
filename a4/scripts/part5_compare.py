@@ -175,7 +175,7 @@ def main():
     rows = []
     main_evals = next((r[4] for r in runs if r[0] == MAIN), {})
     for label, path in [("Student (SFT, nanochat mixture)", os.path.join(LOGS, "p5_sft_mix_eval.log")),
-                        ("OPD main, step 466", os.path.join(LOGS, "p5_opd_v2_s466_full_eval.log"))]:
+                        ("OPD main, step 466", os.path.join(LOGS, "p5_opd_v2_s466_eval.log"))]:
         r = eval_results(path)
         if r and all(t in r for t in TASKS):
             rows.append([label] + [round(100 * r[t][0] / r[t][1], 2) for t in TASKS] + [r.get("ChatCORE", "")])
