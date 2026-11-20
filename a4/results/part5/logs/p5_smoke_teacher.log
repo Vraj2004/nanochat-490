@@ -1,0 +1,36 @@
+Autodetected device type: cuda
+2026-11-18 05:40:50,569 - nanochat.common - [32m[1mINFO[0m - Distributed world size: 1
+2026-11-18 05:40:50,570 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/chatsft_checkpoints/d20_sft_mix with step 466
+2026-11-18 05:40:53,651 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 20, 'n_head': 10, 'n_kv_head': 10, 'n_embd': 1280, 'window_pattern': 'SSSL', 'mlp_type': 'relu2', 'rope_frac': 0.5}
+2026-11-18 05:40:53,815 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Loading model from /data/chatsft_checkpoints/d20_sft_omi with step 499
+2026-11-18 05:40:59,256 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Building model with config: {'sequence_len': 2048, 'vocab_size': 32768, 'n_layer': 20, 'n_head': 10, 'n_kv_head': 10, 'n_embd': 1280, 'window_pattern': 'SSSL', 'mlp_type': 'relu2', 'rope_frac': 0.5}
+Distillation: teacher, teacher sft/d20_sft_omi, reward weight 0.0
+Calculated number of steps: 3736
+Scaling the LR for the AdamW parameters ∝1/√(1280/768) = 0.774597
+Total sequences per step: 32
+Calculated examples per rank: 2
+Step 0 | Pass@1: 0.0000, Pass@2: 0.0000, Pass@3: 0.0000, Pass@4: 0.0000, Pass@5: 0.0000, Pass@6: 0.0000, Pass@7: 0.0000, Pass@8: 0.0000
+Step 0/3736 | Example step 0 | Pass 0 | loss: -0.085285 | Average reward: 0.0
+Step 0/3736 | Example step 0 | Pass 1 | loss: -0.112071 | Average reward: 0.0
+Step 0/3736 | Example step 1 | Pass 0 | loss: -0.132268 | Average reward: 0.0
+Step 0/3736 | Example step 1 | Pass 1 | loss: -0.106349 | Average reward: 0.0
+Step 0/3736 | Average reward: 0.0 | Average sequence length: 229.50 | Correct: 0.0000 | Reverse KL: 0.2552
+Step 1/3736 | Example step 0 | Pass 0 | loss: -0.054965 | Average reward: 0.0
+Step 1/3736 | Example step 0 | Pass 1 | loss: -0.105212 | Average reward: 0.0
+Step 1/3736 | Example step 1 | Pass 0 | loss: -0.082724 | Average reward: 0.0
+Step 1/3736 | Example step 1 | Pass 1 | loss: -0.106811 | Average reward: 0.0
+Step 1/3736 | Average reward: 0.0 | Average sequence length: 284.41 | Correct: 0.0000 | Reverse KL: 0.2282
+Step 2/3736 | Example step 0 | Pass 0 | loss: -0.074524 | Average reward: 0.0
+Step 2/3736 | Example step 0 | Pass 1 | loss: -0.111340 | Average reward: 0.0
+Step 2/3736 | Example step 1 | Pass 0 | loss: -0.070871 | Average reward: 0.0
+Step 2/3736 | Example step 1 | Pass 1 | loss: -0.037506 | Average reward: 0.0
+Step 2/3736 | Average reward: 0.0 | Average sequence length: 265.91 | Correct: 0.0000 | Reverse KL: 0.2063
+Step 3/3736 | Example step 0 | Pass 0 | loss: -0.090466 | Average reward: 0.0
+Step 3/3736 | Example step 0 | Pass 1 | loss: -0.119492 | Average reward: 0.0
+Step 3/3736 | Example step 1 | Pass 0 | loss: -0.065573 | Average reward: 0.0
+Step 3/3736 | Example step 1 | Pass 1 | loss: -0.027513 | Average reward: 0.0
+Step 3/3736 | Average reward: 0.0 | Average sequence length: 291.97 | Correct: 0.0000 | Reverse KL: 0.1653
+2026-11-18 05:42:58,758 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Saved model parameters to: /data/chatrl_checkpoints/p5_smoke_teacher/model_000003.pt
+2026-11-18 05:42:58,759 - nanochat.checkpoint_manager - [32m[1mINFO[0m - Saved metadata to: /data/chatrl_checkpoints/p5_smoke_teacher/meta_000003.json
+✅ Saved model checkpoint to /data/chatrl_checkpoints/p5_smoke_teacher
+Stopping at step 3 (--stop-at-step); the LR schedule was that of the full 3736-step run
