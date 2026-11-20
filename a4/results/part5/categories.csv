@@ -1,0 +1,13 @@
+run,stage,correct,wrong_format,ran_out,ended_early,intermediate,copied,unsupported,setup
+RL #1 correctness,steps 120-240,0.2273,0.0,0.004,0.2025,0.0826,0.0364,0.0154,0.4317
+RL #1 correctness,steps >= 350,0.2541,0.0,0.0062,0.1931,0.0768,0.0393,0.0331,0.3974
+RL #2 finish + partial,steps 120-240,0.2464,0.0,0.0026,0.1382,0.0927,0.0415,0.064,0.4146
+RL #2 finish + partial,steps >= 350,0.2874,0.0,0.0032,0.1,0.0908,0.0382,0.0319,0.4485
+"OPD, OMI-2 teacher (main)",steps 120-240,0.0363,0.0015,0.3935,0.3062,0.0168,0.0125,0.0032,0.23
+"OPD, OMI-2 teacher (main)",steps >= 350,0.0325,0.0012,0.4276,0.3094,0.0147,0.011,0.0033,0.2004
+OPD + reward (lambda = 0.5),steps 120-240,0.0403,0.001,0.3771,0.3138,0.0175,0.0129,0.0026,0.235
+"OPD, MetaMathQA teacher",steps 120-240,0.097,0.0005,0.0721,0.1481,0.0551,0.058,0.0235,0.5457
+"OPD, OMI-2 teacher [no stop token]",steps 120-240,0.0011,0.0001,0.0164,0.9787,0.0005,0.0002,0.0,0.003
+"OPD, OMI-2 teacher [no stop token]",steps >= 350,0.0007,0.0,0.0088,0.9889,0.0002,0.0004,0.0,0.0011
+OPD + reward (lambda = 0.5) [no stop token],steps 120-240,0.0006,0.0,0.012,0.9855,0.0004,0.0003,0.0001,0.0012
+SDPO self-teacher [no stop token],steps 120-240,0.0,0.0,0.4524,0.5476,0.0,0.0,0.0,0.0

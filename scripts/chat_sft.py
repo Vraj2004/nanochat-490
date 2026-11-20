@@ -29,6 +29,8 @@ from tasks.common import TaskMixture
 from tasks.gsm8k import GSM8K
 from tasks.mmlu import MMLU
 from tasks.smoltalk import SmolTalk
+from tasks.metamathqa import MetaMathQA
+from tasks.openmathinstruct import OpenMathInstruct
 
 # -----------------------------------------------------------------------------
 # CLI arguments
@@ -40,6 +42,7 @@ parser.add_argument("--device-type", type=str, default="", help="cuda|cpu|mps (e
 # Model loading
 parser.add_argument("--model-tag", type=str, default=None, help="model tag to load from")
 parser.add_argument("--model-step", type=int, default=None, help="model step to load from")
+parser.add_argument("--output-tag", type=str, default=None, help="model tag to save the SFT checkpoint under (default = --model-tag)")
 parser.add_argument("--load-optimizer", type=int, default=1, help="warm-start optimizer from pretrained checkpoint (0=no, 1=yes)")
 # Training horizon
 parser.add_argument("--num-iterations", type=int, default=-1, help="number of optimization steps (-1 = full epoch)")
@@ -64,6 +67,8 @@ parser.add_argument("--chatcore-max-sample", type=int, default=24, help="max pro
 # Data mixture
 parser.add_argument("--mmlu-epochs", type=int, default=3, help="number of epochs of MMLU in training mixture (teaches Multiple Choice)")
 parser.add_argument("--gsm8k-epochs", type=int, default=4, help="number of epochs of GSM8K in training mixture (teaches Math and Tool Use)")
+parser.add_argument("--extra-data", type=str, default="", choices=["", "metamathqa", "openmathinstruct"], help="additional math dataset in the training mixture (empty = none)")
+parser.add_argument("--extra-rows", type=int, default=150_000, help="number of rows of the additional dataset")
 args = parser.parse_args()
 user_config = vars(args).copy()
 # -----------------------------------------------------------------------------
@@ -164,8 +169,12 @@ train_tasks = [
     *[MMLU(subset="all", split="auxiliary_train") for _ in range(args.mmlu_epochs)], # 100K rows per epoch
     *[GSM8K(subset="main", split="train") for _ in range(args.gsm8k_epochs)], # 8K rows per epoch
 ]
+if args.extra_data == "metamathqa":
+    train_tasks.append(MetaMathQA(stop=args.extra_rows)) # GSM8K-derived rows only
+elif args.extra_data == "openmathinstruct":
+    train_tasks.append(OpenMathInstruct(stop=args.extra_rows)) # GSM8K-sourced rows only
 train_dataset = TaskMixture(train_tasks)
-print0(f"Training mixture: {len(train_dataset):,} rows (MMLU x{args.mmlu_epochs}, GSM8K x{args.gsm8k_epochs})")
+print0(f"Training mixture: {len(train_dataset):,} rows (MMLU x{args.mmlu_epochs}, GSM8K x{args.gsm8k_epochs}, extra: {args.extra_data or 'none'})")
 val_dataset = TaskMixture([
     SmolTalk(split="test"), # 24K rows in test set
     MMLU(subset="all", split="test", stop=5200), # 14K rows in test set, use only 5.2K to match the train ratios
@@ -390,7 +399,7 @@ while True:
 
     # save checkpoint at the end of the run (all ranks participate so each saves its optimizer shard)
     if last_step:
-        output_dirname = args.model_tag if args.model_tag else f"d{depth}" # e.g. d12
+        output_dirname = args.output_tag or args.model_tag or f"d{depth}" # e.g. d12
         checkpoint_dir = os.path.join(base_dir, "chatsft_checkpoints", output_dirname)
         save_checkpoint(
             checkpoint_dir,
@@ -408,6 +417,8 @@ while True:
                     "n_kv_head": model.config.n_kv_head,
                     "n_embd": model.config.n_embd,
                     "window_pattern": model.config.window_pattern,
+                    "mlp_type": model.config.mlp_type,
+                    "rope_frac": model.config.rope_frac,
                 },
                 "user_config": user_config, # inputs to the training script
             },

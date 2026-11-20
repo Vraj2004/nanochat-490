@@ -1,0 +1,4 @@
+model,role,gsm8k_part2,gsm8k_rerun
+"SFT, nanochat mixture",student,0.99,1.9
+SFT + OpenMathInstruct-2,teacher (main),24.34,22.97
+SFT + MetaMathQA,teacher (ablation),15.31,17.13

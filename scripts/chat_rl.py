@@ -9,6 +9,12 @@ simpler and more similar to just REINFORCE:
 3) We use DAPO style normalization that is token-level, not sequence-level.
 4) Instead of z-score normalization (r - mu)/sigma, only use (r - mu) as the advantage.
 
+On-policy distillation (A4 Part 5): with --distill=teacher or --distill=self, a teacher scores every
+sampled token and the per-token advantage becomes log p_teacher - log p_student, a one-sample estimate
+of the negative reverse KL (Thinking Machines Lab, 2025). --distill=self uses SDPO's self-teacher
+(Hubotter et al., 2026): a frozen copy of the starting checkpoint, shown a correct sibling sample.
+--reward-weight mixes in the reward advantage: lambda * (r - mu) + (1 - lambda) * distill.
+
 1 GPU:
 python -m scripts.chat_rl
 
@@ -18,6 +24,7 @@ torchrun --standalone --nproc_per_node=8 -m scripts.chat_rl -- --run=default
 
 import argparse
 import os
+import json
 import itertools
 import wandb
 import torch
@@ -25,7 +32,8 @@ import torch.distributed as dist
 from nanochat.common import compute_init, compute_cleanup, print0, get_base_dir, DummyWandb, autodetect_device_type
 from nanochat.checkpoint_manager import save_checkpoint, load_model
 from nanochat.engine import Engine
-from tasks.gsm8k import GSM8K
+from nanochat.distill import self_teacher_conversation, pick_solutions, generated_token_logprobs, align_to_targets, make_rng
+from tasks.gsm8k import GSM8K, GSM8KShaped
 
 # -----------------------------------------------------------------------------
 # CLI arguments
@@ -37,8 +45,19 @@ parser.add_argument("--device-type", type=str, default="", help="cuda|cpu|mps (e
 # Model loading
 parser.add_argument("--model-tag", type=str, default=None, help="model tag to load from")
 parser.add_argument("--model-step", type=int, default=None, help="model step to load from")
+parser.add_argument("--output-tag", type=str, default=None, help="tag to save checkpoints and rollouts under (default = --model-tag)")
+# Environment (training reward)
+parser.add_argument("--env", type=str, default="gsm8k", choices=["gsm8k", "gsm8k_finish", "gsm8k_partial", "gsm8k_finish_partial"], help="gsm8k = correctness only; _finish / _partial add the shaped bonuses in tasks/gsm8k.py")
+# On-policy distillation (Part 5)
+parser.add_argument("--distill", type=str, default="none", choices=["none", "teacher", "self"], help="none = RL only; teacher = score samples with --teacher-tag; self = SDPO self-teacher (frozen start checkpoint shown a correct sibling)")
+parser.add_argument("--teacher-source", type=str, default="sft", choices=["sft", "rl"], help="checkpoint directory of the teacher")
+parser.add_argument("--teacher-tag", type=str, default=None, help="teacher model tag (default for --distill=self: --model-tag)")
+parser.add_argument("--teacher-step", type=int, default=None, help="teacher model step (default = last)")
+parser.add_argument("--reward-weight", type=float, default=None, help="lambda in lambda*(r - mu) + (1 - lambda)*distill advantage (default: 1 without distillation, 0 with it)")
 # Training horizon
 parser.add_argument("--num-epochs", type=int, default=1, help="number of epochs over GSM8K")
+parser.add_argument("--stop-at-step", type=int, default=-1, help="save and stop at this step, keeping the full run's LR schedule (-1 = run to the end)")
+parser.add_argument("--train-end-token", type=int, default=-1, help="1 = train on the <|assistant_end|> that ended each sample, which the sampler drops (default: 1 with distillation, 0 without, as in the Part 3-4 RL runs)")
 # Batch sizes / sampling
 parser.add_argument("--device-batch-size", type=int, default=8, help="max batch size per forward pass")
 parser.add_argument("--examples-per-step", type=int, default=16, help="total examples per optimization step across all ranks")
@@ -58,6 +77,12 @@ parser.add_argument("--eval-every", type=int, default=60, help="evaluate pass@k 
 parser.add_argument("--eval-examples", type=int, default=400, help="number of examples for pass@k evaluation")
 parser.add_argument("--save-every", type=int, default=60, help="save checkpoint every N steps")
 args = parser.parse_args()
+if args.reward_weight is None:
+    args.reward_weight = 1.0 if args.distill == "none" else 0.0
+if args.train_end_token == -1:
+    args.train_end_token = int(args.distill != "none")
+assert args.distill != "none" or args.reward_weight == 1.0, "--reward-weight < 1 needs a teacher (--distill)"
+assert args.distill != "teacher" or args.teacher_tag, "--distill=teacher needs --teacher-tag"
 user_config = vars(args).copy()
 # -----------------------------------------------------------------------------
 
@@ -74,17 +99,32 @@ wandb_run = DummyWandb() if use_dummy_wandb else wandb.init(project="nanochat-rl
 model, tokenizer, meta = load_model("sft", device, phase="eval", model_tag=args.model_tag, step=args.model_step)
 engine = Engine(model, tokenizer) # for sampling rollouts
 
+# The teacher for on-policy distillation: never trained, only scores the student's samples
+teacher = None
+if args.distill != "none":
+    teacher_tag = args.teacher_tag or args.model_tag
+    teacher, teacher_tokenizer, _ = load_model(args.teacher_source, device, phase="eval", model_tag=teacher_tag, step=args.teacher_step)
+    assert teacher_tokenizer.get_vocab_size() == tokenizer.get_vocab_size(), "teacher and student must share a tokenizer"
+    teacher.requires_grad_(False)
+    print0(f"Distillation: {args.distill}, teacher {args.teacher_source}/{teacher_tag}, reward weight {args.reward_weight}")
+
+# Every rollout is logged (one JSON line per training example per rank) to analyze which problems the model gets right/wrong
+output_dirname = args.output_tag or args.model_tag or f"d{model.config.n_layer}"
+rollout_dir = os.path.join(get_base_dir(), "chatrl_rollouts", output_dirname)
+os.makedirs(rollout_dir, exist_ok=True)
+rollout_file = open(os.path.join(rollout_dir, f"rank{ddp_rank}.jsonl"), "w")
+
 # -----------------------------------------------------------------------------
 # Rollout / sampling generator loop that yields batches of examples for training
 
-train_task = GSM8K(subset="main", split="train")
+train_task = GSM8KShaped(subset="main", split="train", finish="finish" in args.env, partial="partial" in args.env)
 val_task = GSM8K(subset="main", split="test")
 num_steps = (len(train_task) // args.examples_per_step) * args.num_epochs
 print0(f"Calculated number of steps: {num_steps}")
 
 @torch.no_grad()
 def get_batch():
-    assistant_end = tokenizer.encode_special("<|assistant_end|>") # ok to use this token, it's only for padding and isn't used in the loss.
+    assistant_end = tokenizer.encode_special("<|assistant_end|>") # used for padding (mask 0, not in the loss) and, with --train-end-token, as the trained stop token
     rank_indices = range(ddp_rank, len(train_task), ddp_world_size) # each rank is responsible for different examples in the training data
     for example_idx in itertools.cycle(rank_indices):
 
@@ -116,17 +156,48 @@ def get_batch():
 
         # Calculate the rewards for each sample
         rewards = []
+        generated_texts = []
+        terms = [] # (correct, finish, matched intermediates) per sample, logged separately from the shaped reward
         for sample_tokens in generated_token_sequences:
             # Get just the generated tokens (after the prompt)
             generated_tokens = sample_tokens[prefix_length:]
             # Decode the generated response
             generated_text = tokenizer.decode(generated_tokens)
+            generated_texts.append(generated_text)
             # Calculate the reward
             reward = train_task.reward(conversation, generated_text)
             rewards.append(reward)
+            terms.append(train_task.reward_terms(conversation, generated_text))
+        correct, finish, matched = (list(x) for x in zip(*terms))
+
+        # Engine.generate_batch drops the token that ended each sample, so by default the decision to stop is never
+        # trained. With distillation that lets the student escape the (on average negative) per-token advantage by
+        # ending early, so put <|assistant_end|> back, as a sampled token, for every sample that stopped by itself.
+        if args.train_end_token:
+            for seq, mask in zip(generated_token_sequences, masks):
+                if len(seq) - prefix_length < args.max_new_tokens:
+                    seq.append(assistant_end)
+                    mask.append(1)
+
+        # Teacher log-probs of every generated token (Part 5). distill_mask is 0 for samples with no teacher signal.
+        max_length = max(len(seq) for seq in generated_token_sequences)
+        generations = [seq[prefix_length:] for seq in generated_token_sequences]
+        distill_mask = [1.0] * len(generations)
+        teacher_logp = None
+        if args.distill == "teacher":
+            teacher_prefixes = [tokens] * len(generations)
+        elif args.distill == "self":
+            solutions = pick_solutions(correct, make_rng(step, example_idx))
+            teacher_prefixes = [tokens if j is None else tokenizer.render_for_completion(self_teacher_conversation(conversation, generated_texts[j]))
+                                for j in solutions]
+            distill_mask = [0.0 if j is None else 1.0 for j in solutions]
+        if teacher is not None:
+            token_logprobs = generated_token_logprobs(teacher, teacher_prefixes, generations, assistant_end, args.device_batch_size, device)
+            teacher_logp = align_to_targets(token_logprobs, prefix_length, max_length - 1, device)
+        rollout_file.write(json.dumps({"step": step, "idx": example_idx, "rewards": rewards, "correct": correct,
+                                       "finish": finish, "matched": matched, "completions": generated_texts}) + "\n")
 
         # Pad the sequences so that their lengths (in time) match
-        max_length = max(len(seq) for seq in generated_token_sequences)
         padded_generated_token_sequences = [seq + [assistant_end] * (max_length - len(seq)) for seq in generated_token_sequences]
         padded_masks = [mask + [0] * (max_length - len(mask)) for mask in masks]
         # Stack up the sequences and masks into PyTorch tensors
@@ -142,8 +213,11 @@ def get_batch():
         # Calculate the advantages by simply subtracting the mean (instead of z-score (x-mu)/sigma)
         mu = rewards.mean()
         advantages = rewards - mu
+        if teacher_logp is None: # no distillation: a zero teacher term that the reward weight of 1 ignores
+            teacher_logp = torch.zeros_like(targets, dtype=torch.float)
+        distill_mask = torch.tensor(distill_mask, dtype=torch.float, device=device)
         # yield inputs/targets as (B, T) of ids and rewards as (B,) of floats
-        yield generated_token_sequences, inputs, targets, rewards, advantages
+        yield generated_token_sequences, inputs, targets, rewards, advantages, correct, teacher_logp, distill_mask
 
 # -----------------------------------------------------------------------------
 # Simple evaluation loop for GSM8K pass@k
@@ -244,10 +318,12 @@ for step in range(num_steps):
 
     # Forward/Backward on rollouts over multiple examples in the dataset
     rewards_list = []
+    correct_list = [] # fraction of correct samples, = reward for --env=gsm8k
     sequence_lengths = []
+    rkl_sum, rkl_tokens = 0.0, 0 # reverse KL estimate (student vs teacher) over distilled tokens, for logging
     for example_step in range(examples_per_rank):
         # Get one batch corresponding to one example in the training dataset
-        sequences_all, inputs_all, targets_all, rewards_all, advantages_all = next(batch_iterator)
+        sequences_all, inputs_all, targets_all, rewards_all, advantages_all, correct_all, teacher_logp_all, distill_mask_all = next(batch_iterator)
         # Evaluate the loss and gradients
         model.train() # ensure the model is in train mode
         # We need one more loop because we can never exceed the device_batch_size
@@ -260,10 +336,16 @@ for step in range(num_steps):
             targets = targets_all[b0:b1]
             rewards = rewards_all[b0:b1]
             advantages = advantages_all[b0:b1]
+            teacher_logp = teacher_logp_all[b0:b1]
+            distill_mask = distill_mask_all[b0:b1].unsqueeze(-1)
             # Calculate log probabilities. Note that the loss calculates NLL = -logp, so we negate
             logp = -model(inputs, targets, loss_reduction='none').view_as(inputs) # (B, T)
+            # Per-token advantage: the reward advantage (the same for every token of a sample) mixed with the
+            # distillation advantage log p_teacher - log p_student (Part 5). Both are constants for the gradient.
+            distill_adv = (teacher_logp - logp.detach()) * distill_mask
+            token_adv = args.reward_weight * advantages.unsqueeze(-1) + (1.0 - args.reward_weight) * distill_adv
             # Calculate the PG objective. Note that ignore_index=-1 ensures that invalid tokens have loss 0.
-            pg_obj = (logp * advantages.unsqueeze(-1)).sum()
+            pg_obj = (logp * token_adv).sum()
             # normalize by the number of valid tokens, number of passes, and examples_per_rank
             num_valid = (targets >= 0).sum().clamp(min=1)
             pg_obj = pg_obj / (num_valid * num_passes * examples_per_rank)
@@ -271,26 +353,40 @@ for step in range(num_steps):
             # Finally, formulate the loss that we want to minimize (instead of objective we wish to maximize)
             loss = -pg_obj
             loss.backward()
+            if teacher is not None:
+                distilled = (targets >= 0) & (distill_mask > 0)
+                rkl_sum += (logp.detach() - teacher_logp)[distilled].sum().item()
+                rkl_tokens += distilled.sum().item()
             print0(f"Step {step}/{num_steps} | Example step {example_step} | Pass {pass_idx} | loss: {loss.item():.6f} | Average reward: {rewards.mean().item()}")
         # For logging
         rewards_list.append(rewards_all.mean().item())
+        correct_list.append(sum(correct_all) / len(correct_all))
         sequence_lengths.extend(len(seq) for seq in sequences_all)
 
     # A bunch of logging for how the rollouts went this step
     mean_reward = sum(rewards_list) / len(rewards_list)
+    mean_correct = sum(correct_list) / len(correct_list)
     mean_sequence_length = sum(sequence_lengths) / len(sequence_lengths)
+    rkl_stats = torch.tensor([rkl_sum, rkl_tokens], dtype=torch.float, device=device)
     if ddp: # aggregate across ranks
+        dist.all_reduce(rkl_stats, op=dist.ReduceOp.SUM)
         mean_reward_tensor = torch.tensor(mean_reward, dtype=torch.float, device=device)
+        mean_correct_tensor = torch.tensor(mean_correct, dtype=torch.float, device=device)
         mean_sequence_length_tensor = torch.tensor(mean_sequence_length, dtype=torch.float, device=device)
         dist.all_reduce(mean_reward_tensor, op=dist.ReduceOp.AVG)
+        dist.all_reduce(mean_correct_tensor, op=dist.ReduceOp.AVG)
         dist.all_reduce(mean_sequence_length_tensor, op=dist.ReduceOp.AVG)
         mean_reward = mean_reward_tensor.item()
+        mean_correct = mean_correct_tensor.item()
         mean_sequence_length = mean_sequence_length_tensor.item()
-    print0(f"Step {step}/{num_steps} | Average reward: {mean_reward} | Average sequence length: {mean_sequence_length:.2f}")
+    mean_rkl = (rkl_stats[0] / rkl_stats[1].clamp(min=1)).item()
+    print0(f"Step {step}/{num_steps} | Average reward: {mean_reward} | Average sequence length: {mean_sequence_length:.2f} | Correct: {mean_correct:.4f} | Reverse KL: {mean_rkl:.4f}")
     wandb_run.log({
         "step": step,
         "reward": mean_reward,
+        "correct": mean_correct,
         "sequence_length": mean_sequence_length,
+        "reverse_kl": mean_rkl,
     })
 
     # Update the model parameters
@@ -304,11 +400,10 @@ for step in range(num_steps):
         "lrm": lrm,
     })
 
-    # Master process saves the model once in a while. Skip first step. Save last step.
-    if master_process and ((step > 0 and step % args.save_every == 0) or step == num_steps - 1):
+    # Master process saves the model once in a while. Skip first step. Save last step (or the --stop-at-step step).
+    is_last_step = step == num_steps - 1 or step == args.stop_at_step
+    if master_process and ((step > 0 and step % args.save_every == 0) or is_last_step):
         base_dir = get_base_dir()
-        depth = model.config.n_layer
-        output_dirname = args.model_tag if args.model_tag else f"d{depth}" # base the model tag on the depth of the base model
         checkpoint_dir = os.path.join(base_dir, "chatrl_checkpoints", output_dirname)
         model_config_kwargs = model.config.__dict__ # slightly naughty, abusing the simplicity of GPTConfig, TODO nicer
         save_checkpoint(
@@ -321,6 +416,11 @@ for step in range(num_steps):
             }
         )
         print(f"✅ Saved model checkpoint to {checkpoint_dir}")
+    if step == args.stop_at_step:
+        print0(f"Stopping at step {step} (--stop-at-step); the LR schedule was that of the full {num_steps}-step run")
+        break
 
+batch_iterator.close() # finish the rollout generator now rather than during interpreter shutdown
+rollout_file.close()
 wandb_run.finish() # wandb run finish
 compute_cleanup()

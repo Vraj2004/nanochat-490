@@ -1,0 +1,4 @@
+model,train_rows,steps,train_minutes,final_val_bpb
+SFT (nanochat mix),789759,466,5.8,0.2874
+SFT + MetaMathQA,939759,496,6.27,0.287
+SFT + OpenMathInstruct-2,939759,499,6.44,0.2869

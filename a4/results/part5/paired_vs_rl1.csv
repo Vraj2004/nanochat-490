@@ -1,0 +1,11 @@
+run,problems,n,diff_pct_points,ci95_pct_points
+RL #2 finish + partial,steps 0-240,3856,1.63,0.68
+RL #2 finish + partial,steps >= 350,1872,3.33,1.11
+"OPD, OMI-2 teacher (main)",steps 0-240,3856,-18.38,0.88
+"OPD, OMI-2 teacher (main)",steps >= 350,1872,-22.16,1.43
+OPD + reward (lambda = 0.5),steps 0-240,3856,-18.05,0.87
+"OPD, MetaMathQA teacher",steps 0-240,3856,-12.44,0.83
+"OPD, OMI-2 teacher [no stop token]",steps 0-240,3856,-20.86,0.92
+"OPD, OMI-2 teacher [no stop token]",steps >= 350,1872,-25.34,1.51
+OPD + reward (lambda = 0.5) [no stop token],steps 0-240,3856,-20.95,0.92
+SDPO self-teacher [no stop token],steps 0-240,3856,-21.57,0.92

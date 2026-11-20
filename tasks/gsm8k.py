@@ -114,3 +114,55 @@ class GSM8K(Task):
         is_correct = self.evaluate(conversation, assistant_response)
         is_correct_float = float(is_correct)
         return is_correct_float
+
+
+# -----------------------------------------------------------------------------
+# A4 Part 4: shaped-reward RL environments. Same problems and evaluation as GSM8K,
+# only the training reward changes. Both bonuses are capped below 1 (finish 0.1,
+# partial at most 8 x 0.1), so a correct answer always out-scores a wrong one.
+
+CALC_OUTPUT_RE = re.compile(r"<\|output_start\|>(.*?)<\|output_end\|>", re.S)
+NUMBER_RE = re.compile(r"\d[\d,]*\.?\d*")
+
+def to_number(text):
+    """ Parse a number for numeric comparison ("20.0" == "20", "1,000" == "1000"), None if not a number. """
+    try:
+        return round(float(text.replace(",", "")), 6)
+    except ValueError:
+        return None
+
+class GSM8KShaped(GSM8K):
+    """
+    GSM8K with the correctness reward plus optional shaping terms:
+    - finish: +finish_bonus if the final "#### N" is the result of one of the model's own calculator calls
+    - partial: +partial_bonus for each intermediate result of the reference solution (calculator results
+      other than the final answer, and not just a number from the question) that the model also computes
+    """
+
+    def __init__(self, subset, split, finish=False, partial=False, finish_bonus=0.1, partial_bonus=0.1, **kwargs):
+        super().__init__(subset, split, **kwargs)
+        self.finish, self.partial = finish, partial
+        self.finish_bonus, self.partial_bonus = finish_bonus, partial_bonus
+
+    def reward_terms(self, conversation, assistant_response):
+        """ Returns (correct, finish, num_matched_intermediates) for logging and the reward. """
+        correct = self.evaluate(conversation, assistant_response)
+        calc_outputs = {to_number(x) for x in CALC_OUTPUT_RE.findall(assistant_response)} - {None}
+        pred = extract_answer(assistant_response)
+        finish = int(pred is not None and to_number(pred) in calc_outputs)
+        parts = conversation['messages'][-1]['content']
+        final = to_number(extract_answer(parts[-1]['text']))
+        question_numbers = {to_number(x) for x in NUMBER_RE.findall(conversation['messages'][0]['content'])}
+        intermediates = {to_number(p['text']) for p in parts if p['type'] == 'python_output'}
+        intermediates -= question_numbers | {final, None}
+        matched = len(intermediates & calc_outputs)
+        return correct, finish, matched
+
+    def reward(self, conversation, assistant_response):
+        correct, finish, matched = self.reward_terms(conversation, assistant_response)
+        reward = float(correct)
+        if self.finish:
+            reward += self.finish_bonus * finish
+        if self.partial:
+            reward += self.partial_bonus * matched
+        return reward

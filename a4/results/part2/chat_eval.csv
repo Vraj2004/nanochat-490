@@ -1,0 +1,25 @@
+model,task,correct,total,accuracy_pct,ci95_pct
+Base (pretrained),ARC-Easy,596,2376,25.08,1.74
+Base (pretrained),ARC-Challenge,266,1172,22.7,2.4
+Base (pretrained),MMLU,3223,14042,22.95,0.7
+Base (pretrained),GSM8K,0,1319,0.0,0.0
+Base (pretrained),HumanEval,0,164,0.0,0.0
+Base (pretrained),ChatCORE,,,-0.0114,
+SFT (nanochat mix),ARC-Easy,1384,2376,58.25,1.98
+SFT (nanochat mix),ARC-Challenge,543,1172,46.33,2.85
+SFT (nanochat mix),MMLU,4842,14042,34.48,0.79
+SFT (nanochat mix),GSM8K,13,1319,0.99,0.53
+SFT (nanochat mix),HumanEval,20,164,12.2,5.01
+SFT (nanochat mix),ChatCORE,,,0.1972,
+SFT + MetaMathQA,ARC-Easy,1350,2376,56.82,1.99
+SFT + MetaMathQA,ARC-Challenge,543,1172,46.33,2.85
+SFT + MetaMathQA,MMLU,4915,14042,35.0,0.79
+SFT + MetaMathQA,GSM8K,202,1319,15.31,1.94
+SFT + MetaMathQA,HumanEval,17,164,10.37,4.67
+SFT + MetaMathQA,ChatCORE,,,0.2198,
+SFT + OpenMathInstruct-2,ARC-Easy,1410,2376,59.34,1.98
+SFT + OpenMathInstruct-2,ARC-Challenge,550,1172,46.93,2.86
+SFT + OpenMathInstruct-2,MMLU,4866,14042,34.65,0.79
+SFT + OpenMathInstruct-2,GSM8K,321,1319,24.34,2.32
+SFT + OpenMathInstruct-2,HumanEval,21,164,12.8,5.11
+SFT + OpenMathInstruct-2,ChatCORE,,,0.2501,

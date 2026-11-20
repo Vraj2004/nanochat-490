@@ -1,0 +1,540 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{float}
+
+\setlength{\LTcapwidth}{\textwidth}
+\setlength{\emergencystretch}{2em} % avoid overfull lines at long code paths and model names
+
+% Same look as \titleformat{\section}{\large\bfseries}{}{0em}{} from A1, without needing titlesec
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}{1.2em}{0.5em}{\large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}{0.6em}{0.2em}{\normalsize\bfseries}}
+\makeatother
+
+% Column types for the tables
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\graphicspath{{figures/}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\ans}{\code{\#\#\#\#~N}}
+
+\title{\vspace{-3em}{CSC490 Assignment A4: RL-ing nanochat\vspace{-1em}}}
+
+\author{
+  Prithvi Seran (1009973343) \and
+  Vraj Shah (1009102695) \and
+  Tyseer Toufiq (1009364064) \and
+  Joshua Crisologo (1009860438)
+}
+\date{}
+
+\begin{document}
+
+
+\maketitle
+\vspace{-2.5em}
+\begin{center}
+\small Code, logs and scripts: \url{https://github.com/Vraj2004/nanochat-490}
+\end{center}
+
+\section*{Part 1: GRPO and RL Review}
+
+GRPO \cite{grpo} is a variant of PPO \cite{ppo} that replaces the learned value function with a group baseline. For each question $q$ it samples $G$ outputs from the old policy, scores each with a reward $r_i$, and maximizes
+\begin{equation}
+J_{\text{GRPO}}(\theta) = \frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}
+\Big\{\min\!\big[\rho_{i,t}\hat{A}_i,\ \text{clip}(\rho_{i,t},1-\varepsilon,1+\varepsilon)\,\hat{A}_i\big]
+-\beta\, D_{\text{KL}}\big[\pi_\theta\,\|\,\pi_{\text{ref}}\big]\Big\},
+\label{eq:grpo}
+\end{equation}
+where $\rho_{i,t} = \pi_\theta(o_{i,t}\mid q,o_{i,<t})\,/\,\pi_{\theta_{\text{old}}}(o_{i,t}\mid q,o_{i,<t})$ and $\hat{A}_i = (r_i-\text{mean}(\mathbf{r}))/\text{std}(\mathbf{r})$.
+
+nanochat's \code{scripts/chat\_rl.py} \cite{nanochat} keeps the group sampling and the mean baseline and removes almost everything else. Its docstring puts ``GRPO'' in quotes and calls the result ``more similar to just REINFORCE'' \cite{reinforce}. For each GSM8K \cite{gsm8k} question it samples 16 completions and maximizes
+\begin{equation}
+J_{\text{nanochat}}(\theta) = \frac{1}{N}\sum_{i}\sum_{t} m_{i,t}\,\big(r_i-\text{mean}(\mathbf{r})\big)\,\log\pi_\theta(o_{i,t}\mid q,o_{i,<t}),
+\label{eq:nanochat}
+\end{equation}
+where $m_{i,t}$ is 1 only for tokens the model sampled (0 for the prompt, padding and inserted calculator outputs) and $N$ is the number of such tokens in the forward pass. Table~\ref{tab:grpo} lists the four changes.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{GRPO in DeepSeekMath \cite{grpo} against \code{chat\_rl.py} at its default settings.}\label{tab:grpo}
+\begin{tabular}{L{2.7cm} L{5.6cm} L{6.5cm}}
+\toprule
+\textbf{Component} & \textbf{GRPO} & \textbf{nanochat} \\
+\midrule
+Surrogate & PPO ratio $\rho$ against $\pi_{\theta_{\text{old}}}$, clipped & $\log\pi_\theta$ times the advantage; one optimizer step per 256 fresh rollouts \\
+Trust region & KL penalty to a reference policy, $\beta = 0.04$ & None; the learning rate starts at 5\% of its base value and decays linearly to zero over one epoch (467 steps) \\
+Advantage & Group mean subtracted, then divided by the group std & Group mean subtracted only \\
+Length normalization & Mean over each output's tokens, then mean over outputs & Sum over all sampled tokens, divided by their count \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why Karpathy may have made these changes.} nanochat is meant to be minimal, and each removed piece does little in this setting. Every batch of rollouts is used for one gradient step and then discarded, so $\rho = 1$, the clip is inactive, and the gradient of the clipped term in Eq.~\ref{eq:grpo} is $\hat{A}_i\nabla\log\pi_\theta$, which is REINFORCE with a baseline. The KL penalty costs a frozen copy of the model and an extra forward pass. DAPO \cite{dapo} and Dr.~GRPO \cite{drgrpo} drop it too, and here a small learning rate that decays to zero within one epoch already keeps the policy near the SFT model. Dividing by the std up-weights questions whose samples nearly all agree: with a 0/1 reward, a question with 1 of 16 samples correct gets about twice the weight of one with 8 of 16. Dr.~GRPO calls this a question-level difficulty bias and removes the division as well. Averaging within each output gives each token of a long answer less weight than a token of a short one, and DAPO replaces it with the token-level average that nanochat uses. One limit carries over from GRPO: a question whose 16 samples all get the same reward has zero advantage and adds nothing to the gradient. In our replication (Part 3) that was 46\% of the training questions, which the shaped rewards in Part 4 are aimed at.
+
+\section*{Part 2: SFT and Midtraining}
+
+\subsection*{Setup}
+
+We start from our final A3 model, \code{d20\_final\_v2}: depth 20, 897M parameters, partial RoPE on half of each head's dimensions, 5.2B pretraining tokens, CORE 0.242 and validation bpb 0.737. We chose our own model for two reasons. First, A4 continues the model we built and evaluated in A3, so we can see how it behaves after SFT and RL. Second, it scored slightly higher than the full-RoPE d20 baseline (CORE 0.242 vs 0.235), although in A3 that gap was within seed noise. The cost of this choice is that our Part 3 results are not a like-for-like comparison with Karpathy's, which we discuss there. In the July 2026 nanochat, midtraining no longer exists as a separate script: \code{scripts/mid\_train.py} was deleted on January 31, 2026 (commit \code{1ddaad1}) and its data was folded into \code{scripts/chat\_sft.py}, which now runs one stage from the base model. We confirmed on Piazza that this one script covers both SFT and midtraining. Its default mixture is one pass over 790K rows:
+\begin{itemize}[nosep]
+  \item SmolTalk \cite{smoltalk} (460K general conversations),
+  \item the MMLU auxiliary training set \cite{mmlu}, three times (300K multiple-choice questions),
+  \item the GSM8K training set \cite{gsm8k}, four times (30K math problems with calculator calls).
+\end{itemize}
+All other settings are nanochat's defaults: sequence length 2,048, about 1M tokens per step, learning rates inherited from pretraining and started at 80\% of their value, and a linear decay over the second half of the epoch. The pretraining optimizer state was not available to us, so SFT starts with a fresh optimizer, which is also how the October 2025 pipeline worked; Karpathy's notes say loading it ``works slightly better but not by too much'' \cite{nanochat}. Each run took 466--499 steps (5.8--6.4 minutes) on 8 GPUs (requested as H100s; the logs show Modal assigned H200s) and is logged to W\&B (project \code{nanochat-sft}). We evaluate with \code{scripts/chat\_eval.py} on every example of each task, using its default settings. For GSM8K and HumanEval the model writes a full answer, and the default is greedy decoding (with temperature 0 and one sample per problem). This makes the scores deterministic, so small differences between models are not sampling noise, and it matches how Karpathy measured his numbers.
+
+
+\subsection*{Results against the pretrained model}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part2_chat_eval.pdf}
+  \caption{Chat evaluation of the pretrained model and the three SFT models (95\% CI).}
+  \label{fig:part2}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Accuracy (\%) on the full test sets. GSM8K has 1,319 problems ($\pm$ is the 95\% CI); the other intervals are in \code{a4/results/part2/chat\_eval.csv}.}\label{tab:part2}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{l ccccc c}
+\toprule
+\textbf{Model} & \textbf{ARC-E} & \textbf{ARC-C} & \textbf{MMLU} & \textbf{GSM8K} & \textbf{HumanEval} & \textbf{ChatCORE} \\
+\midrule
+Base (pretrained) & 25.1 & 22.7 & 23.0 & 0.0 & 0.0 & $-$0.011 \\
+SFT, nanochat mixture & 58.3 & 46.3 & 34.5 & 1.0 $\pm$ 0.5 & 12.2 & 0.197 \\
+SFT + MetaMathQA & 56.8 & 46.3 & 35.0 & 15.3 $\pm$ 1.9 & 10.4 & 0.220 \\
+SFT + OpenMathInstruct-2 & \textbf{59.3} & \textbf{46.9} & 34.7 & \textbf{24.3 $\pm$ 2.3} & \textbf{12.8} & \textbf{0.250} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:part2} and Table~\ref{tab:part2} show that SFT mostly teaches the chat format, not new knowledge. The base model scores at chance on the chat evaluation (25\% on four-way multiple choice) and 0\% on GSM8K and HumanEval. The model has never seen the chat special tokens (e.g.\ \code{<|user\_start|>}) or the \ans\ answer format that the GSM8K grader reads, so it does not know where to put an answer. The knowledge is already there: the base model's CORE is 0.242, and ARC-Easy reaches 53\% after only 200 SFT steps. After SFT the model reaches 58\% on ARC-Easy, 46\% on ARC-Challenge and 34\% on MMLU, with validation bpb on the chat data falling from 0.466 to 0.287.
+
+The default mixture barely teaches GSM8K: our SFT model solves 1.0\% of GSM8K, against 4.6\% for Karpathy's original SFT model \cite{nanochatpost}. Part 3 shows that this is mostly a formatting failure: the model often does not end with the \ans\ line that the grader reads.
+
+\subsection*{Additional datasets}
+
+The goal of A4 is GSM8K, so we added grade-school math with step-by-step solutions. We chose two datasets that differ in where the data comes from:
+\begin{itemize}[nosep]
+  \item \textbf{MetaMathQA} \cite{metamath} (MIT license) rewrites the GSM8K and MATH training problems with GPT-3.5: rephrased questions, backward reasoning (``if the answer is 18, what is $x$?'') and additional worked answers. We keep only the 240K GSM8K-derived rows.
+  \item \textbf{OpenMathInstruct-2} \cite{openmath2} (CC-BY-4.0) contains new problems synthesized from the GSM8K and MATH training sets, with solutions from Llama-3.1-405B-Instruct. We use its 1M-row release and keep the 153K rows whose source is GSM8K.
+\end{itemize}
+Both are derived from the training sets, not the test set, so they do not leak GSM8K test problems. We convert both to the format the GSM8K grader reads: we remove MetaMathQA's trailing ``The answer is:'' line, append OpenMathInstruct-2's \code{expected\_answer} after its boxed answer, and end both with \ans. In samples of 3,000 rows, 3,000 (MetaMathQA) and 2,999 (OpenMathInstruct-2) end in a parseable \ans. To compare the data rather than the amount, each run adds exactly 150K rows (\code{-{}-extra-data}, \code{-{}-extra-rows} in \code{chat\_sft.py}). Everything else is identical to the original run, including the validation set.
+
+The targeted math data gave the largest improvement. GSM8K rises from 1.0\% to 15.3\% with MetaMathQA and to 24.3\% with OpenMathInstruct-2, both outside the confidence intervals. The other tasks move by at most 1.8 points (3 of 164 HumanEval problems), so extra math does not cost general ability. Validation bpb is the same for all three runs (0.287). The validation set is mostly general conversation, so it does not measure math ability.
+
+The source of the data matters as well as the amount. With the same number of rows, OpenMathInstruct-2 beats MetaMathQA by 9 points on GSM8K. MetaMathQA rewrites the same 7.5K training problems with a different model, while OpenMathInstruct-2 adds new problems with solutions from a much stronger model, so it gives more variety per row. The extra rows also add 6--7\% more steps (496--499 vs 466), so each data change comes with slightly more compute.
+
+\section*{Part 3: Replicating the RL Run}
+
+\subsection*{Setup}
+
+We run \code{scripts/chat\_rl.py} with its default settings from the SFT model with the nanochat mixture, as in Karpathy's run. It makes one pass over the 7,473 GSM8K training problems in 467 steps of 16 problems $\times$ 16 samples (temperature 1.0, at most 256 new tokens), with the binary reward from Part 1: 1 if the number after \code{\#\#\#\#} matches the reference exactly, otherwise 0. Every 60 steps it measures pass@1 to pass@8 on 400 test problems at temperature 1.0, and after training we run \code{chat\_eval} on all 1,319 test problems with greedy decoding. The run took about 2 hours on 8 GPUs requested as H100s (W\&B run \code{73elnw2o}). The one change to the script logs every sampled answer with its reward (\code{chatrl\_rollouts/}), all 119,552 of them, for the analysis below. Karpathy published his curves only as an image \cite{nanochatpost}, so we read his values off it by eye (\code{a4/results/part3/karpathy\_rl\_digitized.csv}) and they are accurate to about $\pm$0.003.
+
+\subsection*{Comparison with the original run}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part3_curves.pdf}
+  \caption{Training reward (light: per step; dark: smoothed) and GSM8K test pass@1 and pass@8 (400 problems, 8 samples at temperature 1.0) for our run and Karpathy's.}
+  \label{fig:part3curves}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{GSM8K before and after RL. Test accuracy uses greedy decoding on 1,319 problems; pass@$k$ is from the evaluation at step 420.}\label{tab:part3}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{l cc cc}
+\toprule
+ & \textbf{After SFT} & \textbf{After RL} & \textbf{pass@1, step 0 $\rightarrow$ 420} & \textbf{pass@8, step 0 $\rightarrow$ 420} \\
+\midrule
+Karpathy (Oct 2025) & 4.6\% & 7.6\% & 2.3 $\rightarrow$ 6.3\% & 14.8 $\rightarrow$ 21.0\% \\
+Ours & 1.0\% & \textbf{13.7\% $\pm$ 1.9} & 0.5 $\rightarrow$ 12.5\% & 5.5 $\rightarrow$ 35.3\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We start lower than Karpathy but gain far more, and most of the gain comes almost immediately. Our reward rises from 0.01 to about 0.25 within 12 steps and then plateaus, while Karpathy's climbs slowly from 0.02 to about 0.06 over the whole run. Pass@1 behaves the same way: 0.5\% at step 0, 9.8\% at step 60, and between 11\% and 14\% from step 120 on.
+
+The early jump is format learning. At step 0, only 38\% of our samples contain \code{\#\#\#\#}; by step 9 it is 84\%, and the logged sequence length (prompt plus answer) falls from 260 to about 140 tokens. Our SFT model often had the arithmetic right but did not finish with the answer line, which the exact-match reward scores as 0. RL fixes this within a few steps because it is the easiest way to raise the reward. Karpathy's SFT model, with its separate midtraining stage, probably already used the format, so his curve shows only the slower improvement in actual math.
+
+Two other differences may contribute: our pipeline has one SFT stage with a different mixture instead of midtraining followed by SFT, and our base model was pretrained on 5.2B tokens against Karpathy's 11.2B (20 per parameter). In both runs pass@8 is far above pass@1, so the model can often solve a problem without solving it reliably, which suggests room for more RL.
+
+\subsection*{Which problems the model gets right and wrong}
+
+We sort every sampled answer into one category with deterministic rules. We use rules rather than embedding-based clustering so that each category has an exact definition and the categorization can be reproduced (script: \code{a4/scripts/part3\_rollouts.py}). The ``correct'' count matches the logged reward on every problem.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Answer categories over all 119,552 sampled answers, checked in this order.}\label{tab:cats}
+\begin{tabular}{L{8.4cm} ccc}
+\toprule
+\textbf{Category} & \textbf{All} & \textbf{Steps $<$ 100} & \textbf{Steps $\geq$ 350} \\
+\midrule
+Correct & 23.2\% & 20.5\% & 25.4\% \\
+Wrong: computed the wrong quantity (final number appears in its working) & 41.5\% & 39.0\% & 39.7\% \\
+No answer: ended the turn mid-solution & 19.4\% & 22.9\% & 19.3\% \\
+Wrong: answered an intermediate quantity of the reference solution & 8.1\% & 7.4\% & 7.7\% \\
+Wrong: repeated a number from the question & 3.7\% & 3.5\% & 3.9\% \\
+Wrong: final number never computed in the answer & 3.3\% & 5.0\% & 3.3\% \\
+No answer: hit the 256-token limit (repetition loops) & 0.8\% & 1.6\% & 0.6\% \\
+Right number, wrong format (e.g.\ 16.0 for 16) & 22 answers & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{part3_categories.pdf}
+  \caption{Share of each answer category per 25 RL steps (16 problems $\times$ 16 samples per step).}
+  \label{fig:part3cats}
+\end{figure}
+
+\textbf{Reasoning, not arithmetic, is the bottleneck.} The calculator tool does the arithmetic, so almost every wrong answer computes something correctly, just the wrong thing: 41.5\% compute the wrong quantity and 8.1\% stop one step early on an intermediate value of the reference solution.
+
+\textbf{About one in five answers ends mid-solution, and RL barely fixes it.} These answers have a median length of 44 tokens and stop partway through a sentence or expression, for example ``The money she earns from one painting is 3 paintings * \$50''. Their share only falls from 22.9\% to 19.3\% over training.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part3_difficulty.pdf}
+  \caption{Mean solve rate (fraction of the 16 samples correct) by the number of calculator steps in the reference solution and by topic, early and late in training.}
+  \label{fig:part3diff}
+\end{figure}
+
+\textbf{Difficulty tracks solution length.} We group problems by the number of calculator calls in their reference solution and by keyword-based topic. The solve rate falls from 41\% for two-step problems to 2\% for problems with six or more steps. RL improves two-step problems the most (33\% to 46\%) and barely changes problems with four or more steps. Percent problems are the hardest topic (16\%) and simple counting problems the easiest (31\%).
+
+\textbf{Almost half the problems gave no learning signal.} 43.1\% of problems were never solved by any of their 16 samples and 3.1\% were always solved. In both cases every sample gets the same reward, so the advantage is zero and the problem contributes no gradient (Part 1). Together that is 46\% of the training set, which is why the gains concentrate on problems the model could already sometimes solve.
+
+\section*{Part 4: A More Complex Reward System}
+
+\subsection*{Reward design}
+
+We built the new reward systems as RL environments with the same problems, calculator and evaluation as GSM8K. Only the training reward changes (\code{GSM8KShaped} in \code{tasks/gsm8k.py}, selected with \code{-{}-env} in \code{chat\_rl.py}). Each bonus is based on a finding from Part 3:
+\begin{itemize}
+  \item \textbf{Finish bonus (+0.1):} awarded if the answer ends in \ans\ and N is the result of one of the model's own calculator calls. It targets the 19\% of answers that end mid-solution. Requiring N to be computed means a guessed final number earns nothing. We considered also giving +0.05 for any well-formed \ans, but that tier would only ever reward guesses, and correctness already requires the format.
+  \item \textbf{Partial credit (+0.1 per step):} for each intermediate result of the reference solution that the model also computes. The reference results come from GSM8K's calculator annotations (e.g.\ \code{<<12/60=0.2>>}). We exclude the final answer, which correctness already rewards, and values that already appear in the question (6.7\% of them), so restating a given number earns nothing. Values are compared numerically (``20.0'' = ``20''), and each counts once. This targets the 41.5\% of answers that compute the wrong quantity and the 8.1\% that stop one step early.
+\end{itemize}
+A reference solution has at most 8 intermediate results (2.0 on average; 475 problems have none), so a wrong answer can score at most $0.1 + 0.8 = 0.9$ and a correct answer always scores higher. Partial credit is a good predictor of success in Part 3's rollouts. Correct answers match 1.37 reference intermediates on average against 0.79 for wrong ones, and 55\% of wrong answers match at least one, so partial credit separates answers that currently all score 0. When we rescore the Part 3 rollouts offline, the share of problems whose 16 samples all get the same reward falls from 46.2\% to 7.8\% with the finish bonus, 13.3\% with partial credit and 4.8\% with both. Evaluation is always the original 0/1 correctness, so the bonuses cannot inflate the results.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{The four RL runs. All use the default \code{chat\_rl.py} settings from the same SFT model, on 8 GPUs requested as H100s.}\label{tab:runs}
+\begin{tabular}{l l l l}
+\toprule
+\textbf{Run} & \textbf{Environment (\code{-{}-env})} & \textbf{Training reward} & \textbf{W\&B run} \\
+\midrule
+\#1 (Part 3) & \code{gsm8k} & correct & \code{73elnw2o} \\
+\#2 & \code{gsm8k\_finish\_partial} & correct + finish + partial & \code{2i9jo316} \\
+\#3 & \code{gsm8k\_finish} & correct + finish & \code{p0ktopcl} \\
+\#4 & \code{gsm8k\_partial} & correct + partial & \code{qa8692ci} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Run \#2 combines both rewards; runs \#3 and \#4 run each reward separately in its own environment. The four runs see the same problems in the same order, so their rollouts can be compared problem by problem. Run \#2's first attempt stopped at step 8 when our Modal workspace reached its spending limit; the reported run is a clean restart from step 0.
+
+\subsection*{Results}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Results of all four RL runs. Test is GSM8K with greedy decoding (1,319 problems, $\pm$1.9 95\% CI); pass@$k$ is at step 420 (400 problems); training columns are over all samples from steps $\geq$ 350.}\label{tab:part4}
+\begin{tabular}{l c cc ccc}
+\toprule
+ & & & & \multicolumn{3}{c}{\textbf{Training samples, steps $\geq$ 350}} \\
+\cmidrule(lr){5-7}
+\textbf{Run} & \textbf{Test} & \textbf{pass@1} & \textbf{pass@8} & \textbf{Correct} & \textbf{No \code{\#\#\#\#}} & \textbf{Problems solved $\geq$1/16} \\
+\midrule
+SFT (start) & 1.0\% & 0.5\% & 5.5\% & -- & -- & -- \\
+\#1 correctness only & 13.7\% & 12.5\% & 35.3\% & 25.4\% & 19.9\% & 56.6\% \\
+\#3 + finish & 13.6\% & 14.8\% & 33.0\% & 26.7\% & 14.6\% & 57.7\% \\
+\#4 + partial & 12.5\% & 13.5\% & 30.0\% & 28.1\% & 22.8\% & 61.1\% \\
+\#2 + both & \textbf{15.0\%} & \textbf{15.3\%} & \textbf{39.0\%} & \textbf{28.7\%} & \textbf{10.3\%} & \textbf{61.9\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part4_curves.pdf}
+  \caption{GSM8K test pass@1 and pass@8 during training, and the share of correct training samples per 25 steps.}
+  \label{fig:part4curves}
+\end{figure}
+
+\textbf{On the test set, the differences are within noise.} The combined reward is best on every metric, at 15.0\% on GSM8K against 13.7\% for the original, with pass@8 at 39\% against 35\%. With one run per reward and a $\pm$1.9-point interval on 1,319 problems, however, a 1.4-point difference is not significant. Each bonus alone ends within 1.2 points of the original.
+
+\textbf{Compared problem by problem, all three new rewards help.} Because the runs see the same problems at the same steps, we can compare each problem's solve rate (fraction of 16 samples correct) with run \#1's on the same problem. This paired comparison is much more sensitive than the test-set comparison (Table~\ref{tab:paired}). Every difference is positive with a 95\% interval that excludes zero, and the combined reward gains 2.0 points overall and 3.3 points late in training. The comparison accounts for sampling noise but not for variation between training runs, since we have one run per reward.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Mean per-problem difference in training solve rate against run \#1, in percentage points ($\pm$ 95\% CI).}\label{tab:paired}
+\begin{tabular}{l cc}
+\toprule
+\textbf{Run} & \textbf{All 7,472 problems} & \textbf{Steps $\geq$ 350 (1,872 problems)} \\
+\midrule
+\#3 + finish & +0.8 $\pm$ 0.5 & +1.3 $\pm$ 1.1 \\
+\#4 + partial & +1.8 $\pm$ 0.5 & +2.7 $\pm$ 1.1 \\
+\#2 + both & \textbf{+2.0 $\pm$ 0.5} & \textbf{+3.3 $\pm$ 1.1} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Summary of the impact of each change, from Tables~\ref{tab:part4} and~\ref{tab:paired}. Test differences are against run \#1; paired gains are per-problem training solve rate, all steps.}\label{tab:part4summary}
+\begin{tabular}{L{2.6cm} c c L{8.2cm}}
+\toprule
+\textbf{Run} & \textbf{Test vs \#1} & \textbf{Paired gain} & \textbf{Impact} \\
+\midrule
+\#3 + finish & $-$0.1 & +0.8 & Fewer answers end mid-solution (19\% to 14\%), but the extra finished answers are mostly wrong. \\
+\#4 + partial & $-$1.1 & +1.8 & Fewer wrong-quantity answers (40\% to 33\%) and more problems solved at least once, but slightly more unfinished answers. \\
+\#2 + both & +1.4 & +2.0 & Keeps both effects: the most correct training answers and half as many answers without \code{\#\#\#\#}. Best test score, but within the $\pm$1.9 interval. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{How the types of mistakes changed}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part4_behavior.pdf}
+  \caption{The behaviors the rewards target, per 25 RL steps: answers without a \code{\#\#\#\#} line, answers that end on one of their own calculator results, and the number of reference intermediate results matched per answer.}
+  \label{fig:part4behavior}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part4_mistakes.pdf}
+  \caption{Answer categories (Table~\ref{tab:cats}) late in training for each run.}
+  \label{fig:part4mistakes}
+\end{figure}
+
+\textbf{The finish bonus changes how answers end more than whether they are right.} With the finish bonus, answers that end mid-solution fall from 19\% to 14\%, and final numbers that were never computed fall from 3.3\% to 1.1\%. 79\% of answers now end on their own result, against 69\% for run \#1. Most of the answers that now finish are wrong, however: ``computed the wrong quantity'' rises from 40\% to 46\%. The model completes its work more often, but that does not make the reasoning right.
+
+\textbf{Partial credit cuts wrong-quantity answers.} It reduces ``computed the wrong quantity'' from 40\% to 33\% and also raises the share of problems solved at least once from 57\% to 61\%. On the other hand, slightly more answers end mid-solution (22\%), and more end on a final number that was never computed (5.8\%). The model is rewarded for correct intermediate steps even when it then writes a final number it did not compute.
+
+\textbf{Combining the two rewards keeps both benefits.} The combined run has the most correct answers (29\%) and the fewest answers without a final line (10\%, half of run \#1). A slightly larger share of its answers stop one step early (9.1\% vs 7.7\%), which is consistent with partial credit rewarding intermediate values.
+
+\textbf{We found no sign of reward hacking.} One way to exploit partial credit would be to make many calculator calls in the hope of hitting reference values. The number of calls per answer stays between 2.5 and 2.8 in every run, against 2.5 for run \#1.
+
+\subsection*{Discussion}
+
+Both shaped rewards changed the behavior they target, gave a learning signal on most of the problems that had none, and improved training accuracy on the same problems by up to 3.3 points. The combined reward is the best of the four runs. The gain on the test set, however, is small. We see three likely reasons:
+\begin{itemize}[nosep]
+  \item The easiest gain, learning the answer format, was taken by every run within its first ten steps.
+  \item RL can only reinforce answers the model sometimes produces, and our 0.9B model rarely solves problems with four or more steps.
+  \item One pass over 7.5K problems is short.
+\end{itemize}
+This fits Part 2, where changing the SFT data raised GSM8K by up to 23 points; changing the RL reward raised it by at most 1.4. Next steps would be a second seed for runs \#1 and \#2, more than one epoch, and RL from the stronger OpenMathInstruct-2 SFT model.
+
+\section*{Part 5: On-Policy Distillation}
+
+\subsection*{Method}
+
+We use on-policy distillation \cite{opd}. The student samples its own answers, exactly as in RL, and a fixed teacher scores every sampled token. The per-token advantage is
+\begin{equation}
+A_t = \log\pi_{\text{teacher}}(o_t\mid q,o_{<t}) - \log\pi_\theta(o_t\mid q,o_{<t}),
+\label{eq:opd}
+\end{equation}
+a one-sample estimate of the negative reverse KL, with no discounting. We plug $A_t$ into the objective of Eq.~\ref{eq:nanochat} in place of $r_i-\text{mean}(\mathbf{r})$, so the update is the same token-level policy gradient as in Parts 3 and 4, and only the advantage changes (\code{-{}-distill} in \code{scripts/chat\_rl.py}; helpers in \code{nanochat/distill.py}). The student is the nanochat-mixture SFT model from Part 2 (1.0\% on GSM8K), the model every RL run started from. The teacher is the OpenMathInstruct-2 SFT model from Part 2 (24.3\%). It has the same architecture and tokenizer, which on-policy distillation needs because the teacher must score the student's exact tokens. Every other setting is the RL default from Part 3: one epoch of 467 steps, 16 questions $\times$ 16 samples per step, temperature 1.0, at most 256 new tokens, the same learning rate and schedule, and the same pass@$k$ evaluation every 60 steps. The rollouts are logged in the same format, so the Part 3 error categories apply unchanged.
+
+We chose an external teacher over SDPO's self-teacher \cite{sdpo} for the main run. SDPO conditions the model itself on a correct solution and distills that back, which relies on the model learning from a solution placed in its prompt; Hübotter et al.\ find that it does worse than GRPO on Qwen2.5-1.5B and that the benefit grows with scale. Our model has 0.9B parameters, so we test SDPO as an ablation instead.
+
+The SFT and RL checkpoints from Parts 2--4 were on a different Modal workspace, so we re-ran the three SFT runs on ours with identical settings (fresh optimizer, same data and seed) and check that their GSM8K scores match Part 2 before using them.
+
+\subsection*{Hypothesis (committed before running, commit \code{eba4a3a})}
+
+Part 3 showed that 46\% of training problems give RL no gradient, because all 16 samples get the same reward. Distillation gives a learning signal on every sampled token, including on the 43\% of problems the model never solves, and the teacher solves a quarter of the test set. We therefore expect:
+\begin{enumerate}[nosep]
+  \item \textbf{Accuracy.} The distilled student will beat our best RL run (\#2, 15.0\% on GSM8K) and finish between it and the teacher, at about 17--24\%. It will also beat RL on pass@1 and pass@8 at every evaluation after step 60.
+  \item \textbf{Mistakes.} RL mainly fixed the answer format (Part 3). Distillation should also reduce ``computed the wrong quantity'', the largest error category, because the teacher scores every reasoning step, not only the final answer.
+  \item \textbf{No forgetting.} The teacher is a general chat model, so ARC and MMLU will stay within 2 points of the starting SFT model.
+\end{enumerate}
+We run three ablations, each stopped at step 240 with the full run's learning-rate schedule, and compare them with the main run's step-240 checkpoint and with the RL runs at step 240:
+\begin{enumerate}[nosep,resume]
+  \item \textbf{Weaker teacher} (MetaMathQA SFT model, 15.3\%): the student will gain less, so the student's accuracy depends on the teacher's.
+  \item \textbf{Teacher plus reward} ($A_t = 0.5\,(r_i-\text{mean}(\mathbf{r})) + 0.5\,(\log\pi_{\text{teacher}}-\log\pi_\theta)$): little or no gain over distillation alone, because the reward is zero for most samples.
+  \item \textbf{SDPO self-teacher} (a frozen copy of the starting model, shown a correct sample from the same group): the weakest of the three, close to RL \#1, because a 0.9B model gains little from a solution in its prompt and there is no signal on problems where no sample is correct.
+\end{enumerate}
+
+\subsection*{Reproducing the SFT models}
+
+Every Part 5 run is logged to W\&B (projects \code{nanochat-sft} and \code{nanochat-rl}; run IDs in \code{a4/README.md}), and the training logs, rollouts and evaluation logs behind each number are in \code{a4/results/part5/}, processed by \code{a4/scripts/part5\_compare.py}. The hypothesis above was committed (\code{eba4a3a}) before any Part 5 run started.
+
+The re-run student matches Part 2 to the fourth decimal of validation bpb (0.2931 at step 400 and 0.2874 at step 466 in both runs). On the full chat evaluation it scores 57.9\% on ARC-Easy, 47.2\% on ARC-Challenge, 35.0\% on MMLU, 12.2\% on HumanEval and 1.9\% on GSM8K (Part 2: 58.3, 46.3, 34.5, 12.2 and 1.0\%). The re-run teachers score 23.0\% (OpenMathInstruct-2) and 17.1\% (MetaMathQA) on GSM8K, against 24.3\% and 15.3\% in Part 2. All of these differences are inside the 95\% intervals.
+
+\subsection*{The first runs collapsed}
+
+Our first three runs (the main run, teacher plus reward, and SDPO) all collapsed. In the main run, pass@1 fell from 1.0\% to 0\% by step 60 and stayed there, and pass@8 fell from 6.3\% to 0.3\%. The median answer shrank from 671 to 175 characters, the share of answers with a \code{\#\#\#\#} line fell from 35\% to 0.3\%, and 99\% of late answers stopped in the middle of the solution, for example ``This is a total of \$25 * 10 = \$''.
+
+The cause was in our code. \code{Engine.generate\_batch} removes the \code{<|assistant\_end|>} token that ends each sample, so the decision to stop is never trained. In distillation, $A_t$ in Eq.~\ref{eq:opd} averages $-\mathrm{KL} \le 0$ over the student's own samples, so almost every token the student writes is pushed down a little. Stopping was the only action that was never pushed down, and the student learned to stop early. We fixed this by putting the stop token back, as a sampled token that the teacher also scores, for every sample that ended before the 256-token limit (\code{-{}-train-end-token}, on by default with distillation and off for RL, so Parts 3 and 4 are unchanged). We kept the collapsed runs as an ablation.
+
+The same mechanism explains part of Part 3. RL also never trains the stop token, so it can only make early stopping less likely through the tokens before it, which fits ``ended mid-solution'' falling only from 22.9\% to 19.3\%.
+
+The SDPO run had a second problem. To fit the sibling's solution into a user message we had written its calculator calls as plain \code{<<expr=result>>} text, so the self-teacher scored the student's real calculator tokens as unlikely. Calculator use fell from 35\% at step 0 to 13\% over the first five steps and to 0\% by step 40. No sample was correct after step 2, and with no correct sibling there was no signal left to recover from. We fixed the prompt (the correct solution is now an earlier assistant turn with real tool tokens), but the fixed SDPO run did not fit in our remaining credits.
+
+\subsection*{Main run against RL}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{The main distillation run against RL. Test is GSM8K with greedy decoding (1,319 problems, at most 512 new tokens); pass@$k$ is at step 420 (400 problems, 8 samples at temperature 1.0, at most 256 new tokens); training columns are over all samples from steps $\geq$ 350: correct, hit the 256-token limit with no answer, and stopped without a \code{\#\#\#\#} line.}\label{tab:part5main}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{l c cc ccc}
+\toprule
+ & & & & \multicolumn{3}{c}{\textbf{Training samples, steps $\geq$ 350}} \\
+\cmidrule(lr){5-7}
+\textbf{Run} & \textbf{Test} & \textbf{pass@1} & \textbf{pass@8} & \textbf{Correct} & \textbf{Ran out} & \textbf{No answer line} \\
+\midrule
+Student (SFT, start) & 1.9\% & 0.8\% & 6.0\% & -- & -- & -- \\
+RL \#1, correctness & 13.7\% & 12.5\% & 35.3\% & 25.4\% & 0.6\% & 19.3\% \\
+RL \#2, shaped reward & \textbf{15.0\%} & \textbf{15.3\%} & \textbf{39.0\%} & \textbf{28.7\%} & 0.3\% & 10.0\% \\
+OPD, no stop token & 0.0\% & 0.0\% & 0.3\% & 0.1\% & 0.9\% & 98.9\% \\
+OPD, with stop token (main) & 1.8\% & 1.0\% & 13.3\% & 3.2\% & 42.8\% & 30.9\% \\
+Teacher (OMI-2 SFT) & 23.0\% & & & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part5_curves.pdf}
+  \caption{GSM8K pass@1 and pass@8 during training, the share of correct training samples, and the reverse KL between student and teacher on the student's samples. Dotted lines are the runs without the stop token. The grey line marks step 240, where the ablations stop.}
+  \label{fig:part5curves}
+\end{figure}
+
+\textbf{With the stop token, distillation stopped collapsing but did not beat RL.} Pass@8 doubled from 6.0\% to 13.3\% and the reverse KL to the teacher fell from 0.23 to 0.15 nats per token, so the student did move towards the teacher. Pass@1 stayed between 0\% and 1.75\% at every evaluation, against 12.5\% for RL \#1, and only 3\% of training samples were correct. Compared problem by problem with RL \#1 on the same problems, the student's solve rate is 18.4 points lower over steps 0--240 and 22.2 points lower from step 350 ($\pm$0.9 and $\pm$1.4). Our first hypothesis is wrong: distillation from this teacher did far worse than RL.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part5_style.pdf}
+  \caption{How the student's answers change during training: calculator use, answers with a \code{\#\#\#\#} line, answers opening with ``Let's break \ldots'' or ``To \ldots'' (the OpenMathInstruct-2 style), and median answer length, for RL \#1 and the distillation runs.}
+  \label{fig:part5style}
+\end{figure}
+
+\textbf{The student learned the teacher's style, which does not fit the RL setup.} Figure~\ref{fig:part5style} shows what the student copied. Within 20 steps about half of its answers open the way OpenMathInstruct-2 solutions do (``Let's break down the problem step by step''), calculator use falls from 35\% at step 0 to about 23\% (RL \#1 raises it to 93\%), and the answers stay long (median 738 characters, against 323 for RL \#1). These long answers do not fit in the 256 new tokens that every rollout gets: 43\% of late samples hit the limit before giving an answer, and 31\% stop without the \code{\#\#\#\#} line the grader reads, often ending in ``The answer is: \ldots'' instead. Only 23\% are wrong answers in the Part 3 sense. RL learns the grader's format in about ten steps because the reward checks it directly. Distillation has no such signal: the teacher was trained on solutions in its own style, and it rates the student's tokens by how close they are to that style, not by whether the final line is in the format the grader reads.
+
+\textbf{Greedy decoding with more tokens helps only a little.} Table~\ref{tab:part5main}'s test column uses the same greedy, 512-token evaluation as Parts 2--4, which gives the long answers room to finish. The student scores 3.7\% at step 240 and 1.8\% at step 466, against 1.9\% at the start, so the small gain halfway through is gone by the end. RL \#1 reaches 13.7\% under the same evaluation.
+
+\subsection*{Ablations}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Every distillation variant at step 240, with the RL runs at the same step. Test is greedy GSM8K of the step-240 checkpoint; pass@$k$ is from the evaluation at step 240; the paired difference is the mean per-problem training solve rate minus RL \#1's on the same problems, steps 0--240 ($\pm$ 95\% CI).}\label{tab:part5abl}
+\begin{tabular}{l c cc c}
+\toprule
+\textbf{Run} & \textbf{Test} & \textbf{pass@1} & \textbf{pass@8} & \textbf{vs RL \#1 (points)} \\
+\midrule
+RL \#1, correctness & -- & 14.3\% & 32.0\% & 0 \\
+RL \#2, shaped reward & -- & 15.3\% & 34.8\% & +1.6 $\pm$ 0.7 \\
+OPD, OMI-2 teacher (main) & 3.7\% & 1.0\% & 10.5\% & $-$18.4 $\pm$ 0.9 \\
+OPD, MetaMathQA teacher & \textbf{10.9\%} & \textbf{6.5\%} & \textbf{29.0\%} & $-$12.4 $\pm$ 0.8 \\
+OPD + reward ($\lambda = 0.5$) & 4.9\% & 1.5\% & 13.3\% & $-$18.1 $\pm$ 0.9 \\
+OPD, no stop token & -- & 0.0\% & 0.0\% & $-$20.9 $\pm$ 0.9 \\
+OPD + reward, no stop token & -- & 0.0\% & 0.3\% & $-$21.0 $\pm$ 0.9 \\
+SDPO self-teacher, no stop token & -- & 0.0\% & 0.0\% & $-$21.6 $\pm$ 0.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{The weaker teacher did better, so our fourth hypothesis is wrong.} The MetaMathQA teacher solves fewer test problems than the OpenMathInstruct-2 teacher (17.1\% against 23.0\%). Even so, at step 240 its student scores 10.9\% on the greedy test, against 3.7\% for the main run and 13.7\% for RL \#1 after its full 467 steps. It also reaches 6.5\% pass@1 and 29.0\% pass@8, against 1.0\% and 10.5\% for the main run, and it closes about a third of the gap to RL \#1 on the training problems ($-$12.4 against $-$18.4 points). We think the reason is the answer format. The GSM8K rows of MetaMathQA are written like GSM8K solutions and end in a \code{\#\#\#\#} line. OpenMathInstruct-2 solutions are long, end in \code{\textbackslash boxed\{\}}, and get the \code{\#\#\#\#} line only because our data loader appends it. The MetaMathQA student keeps the answer line in 74--91\% of its answers (18--35\% in the main run), keeps a median length of about 445 characters, and runs out of tokens on 7\% of samples at steps 120--240, against 39\% in the main run (Figure~\ref{fig:part5style}). For the student, whether the teacher writes in the format the grader reads mattered more than how accurate the teacher was.
+
+\textbf{Adding the reward changed little, as predicted.} With $\lambda = 0.5$ the student scores 4.9\% on the greedy test at step 240, against 3.7\% for distillation alone. That gap is 1.2 points, inside the $\pm$1.6-point interval for two runs on 1,319 problems. Pass@1 and pass@8 are 1.5\% and 13.3\%, and the paired gap to RL \#1 is the same as the main run's ($-$18.1 $\pm$ 0.9 against $-$18.4 $\pm$ 0.9). Its answers look like the main run's: about half open in the OpenMathInstruct-2 style, and 38\% run out of tokens at steps 120--240. Only 4\% of its samples are correct, so in most groups every sample gets the same reward, the reward half of the advantage is zero, and the teacher's term decides the update.
+
+\textbf{The stop token mattered more than the teacher or the reward.} Without it, every variant collapsed: the main run, teacher plus reward and SDPO all reach 0\% pass@1 by step 240 and sit 21--22 points below RL \#1 on the training problems. We could not test the sixth hypothesis. Our only SDPO run had both bugs described above, and the fixed run did not fit in our credits, so these results say nothing about SDPO at this scale.
+
+\subsection*{Types of mistakes}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{part5_mistakes.pdf}
+  \caption{Answer categories (Table~\ref{tab:cats}) for training samples at steps 120--240.}
+  \label{fig:part5mistakes}
+\end{figure}
+
+Our second hypothesis was that distillation would reduce ``computed the wrong quantity''. It did, from 43\% of samples for RL \#1 to 23\% for the main run at steps 120--240, but the reasoning did not get better. Those answers moved into the two ways of giving no answer at all: running out of tokens (39\%) and stopping without a \code{\#\#\#\#} line (31\%). The runs without the stop token show the extreme case, where 98\% of answers stop mid-solution. The MetaMathQA run gives a cleaner test, because most of its answers do finish. Only 22\% of its answers at steps 120--240 give no answer (RL \#1: 21\%), and 55\% compute the wrong quantity, more than RL \#1's 43\%. Once the format problem is gone, distillation leaves more reasoning errors than RL does, so our second hypothesis is wrong too.
+
+\subsection*{Distillation against RL}
+
+\textbf{No forgetting, but little change of any kind.} Our third hypothesis held: from the starting SFT model to the final distilled model, ARC-Easy went from 57.9\% to 57.4\%, ARC-Challenge from 47.2\% to 45.7\% and MMLU stayed at 35.0\%, all within 2 points. HumanEval fell from 12.2\% to 7.9\% (20 to 13 of 164 problems), inside its $\pm$5-point interval, and ChatCORE went from 0.202 to 0.188. Since GSM8K did not move either, this mostly says the student changed little overall.
+
+With the main teacher and at this scale, RL was much better than on-policy distillation. Pass@1 at step 420 was 12.5\% against 1.0\%, for about the same compute: the main distillation run took 1 h 52 min on 8 GPUs and RL \#1 took 1 h 55 min, since scoring each sample with the teacher costs one extra forward pass and sampling dominates both. We think three things worked against distillation here. First, most of the per-token difference between the two models is style: both are SFT models of the same base and the initial reverse KL is only 0.23 nats per token, so most of the signal teaches phrasing rather than the steps that make the teacher more accurate. Second, the teacher's style needs more than the 256 new tokens the RL setup allows, so imitating it left many answers unfinished. Third, nothing in distillation rewards the grader's \code{\#\#\#\#} line, while RL gets that signal from the first step. Our teacher is much more accurate than the student (23\% against 1.9\%), but unlike the teachers in Thinking Machines' experiments \cite{opd}, its outputs do not fit the student's answer format or token budget. The MetaMathQA ablation supports the second and third points: a less accurate teacher whose answers are short and end in the grader's format gave three times the main run's greedy test score at step 240 (10.9\% against 3.7\%) and almost three times its pass@8. That student still trailed RL \#1 by 12 points on the training problems, which fits the first point: with a teacher from the same base, the per-token signal says little about reasoning. A teacher trained on the student's own format (for example the best RL checkpoint), a 512-token budget, or a reward term for the answer line are the changes we would test next.
+
+\textbf{Cost.} Part 5 used about \$318 of Modal credits: three SFT re-runs (\$35, including one preempted by Modal at 99\%), the three collapsed runs (\$122), the fixed main run (\$62), two ablations (\$76), and evaluations. Modal also queued some jobs for hours waiting for H100s, so we moved those to H200s.
+
+\begin{thebibliography}{99}
+
+\bibitem{nanochat}
+A. Karpathy, ``nanochat,'' GitHub repository, 2025. \url{https://github.com/karpathy/nanochat}
+
+\bibitem{nanochatpost}
+A. Karpathy, ``Introducing nanochat: The best ChatGPT that \$100 can buy,'' GitHub discussion, October 2025. \url{https://github.com/karpathy/nanochat/discussions/1}
+
+\bibitem{grpo}
+Z. Shao et al., ``DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models,'' arXiv:2402.03300, 2024.
+
+\bibitem{ppo}
+J. Schulman et al., ``Proximal Policy Optimization Algorithms,'' arXiv:1707.06347, 2017.
+
+\bibitem{reinforce}
+R. J. Williams, ``Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning,'' \textit{Machine Learning}, vol.~8, 1992.
+
+\bibitem{gsm8k}
+K. Cobbe et al., ``Training Verifiers to Solve Math Word Problems,'' arXiv:2110.14168, 2021.
+
+\bibitem{dapo}
+Q. Yu et al., ``DAPO: An Open-Source LLM Reinforcement Learning System at Scale,'' arXiv:2503.14476, 2025.
+
+\bibitem{drgrpo}
+Z. Liu et al., ``Understanding R1-Zero-Like Training: A Critical Perspective,'' arXiv:2503.20783, 2025.
+
+\bibitem{smoltalk}
+L. B. Allal et al., ``SmolLM2: When Smol Goes Big -- Data-Centric Training of a Small Language Model,'' arXiv:2502.02737, 2025.
+
+\bibitem{mmlu}
+D. Hendrycks et al., ``Measuring Massive Multitask Language Understanding,'' \textit{ICLR}, 2021. arXiv:2009.03300.
+
+\bibitem{metamath}
+L. Yu et al., ``MetaMath: Bootstrap Your Own Mathematical Questions for Large Language Models,'' \textit{ICLR}, 2024. arXiv:2309.12284.
+
+\bibitem{openmath2}
+S. Toshniwal et al., ``OpenMathInstruct-2: Accelerating AI for Math with Massive Open-Source Instruction Data,'' arXiv:2410.01560, 2024.
+
+\bibitem{opd}
+Thinking Machines Lab, ``On-Policy Distillation,'' blog post, 2025. \url{https://thinkingmachines.ai/blog/on-policy-distillation}
+
+\bibitem{sdpo}
+J. H\"ubotter et al., ``Reinforcement Learning via Self-Distillation,'' arXiv:2601.20802, 2026.
+
+\end{thebibliography}
+
+\end{document}

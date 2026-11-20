@@ -1,0 +1,7 @@
+run,problems,n,diff_pct_points,ci95_pct_points
+#3 finish,all steps,7472,0.84,0.51
+#3 finish,steps >= 350,1872,1.34,1.07
+#4 partial,all steps,7472,1.78,0.51
+#4 partial,steps >= 350,1872,2.69,1.07
+#2 finish + partial,all steps,7472,2.01,0.52
+#2 finish + partial,steps >= 350,1872,3.33,1.11
